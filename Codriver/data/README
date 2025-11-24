@@ -1,0 +1,39 @@
+README - Cartella "data"
+
+- SCOPO
+  Questa cartella deve contenere esclusivamente i file di salvataggio relativi a:
+- log applicativi
+- preset/configurazioni
+- screenshot dei dati (es. schermate di telemetria)
+- informazioni di viaggio (dati di percorso, riepiloghi)
+
+Struttura consigliata
+
+- logs/ -> file .log, .txt
+- presets/ -> file .json, .yaml
+- screenshots/ -> file .png, .jpg
+- trips/ -> file .json, .csv
+
+Convenzioni di nome
+Usare timestamp ISO o formato leggibile per ordinamento:
+
+- logs/app_YYYY-MM-DDTHH-MM-SS.log
+- presets/preset-name_v1.json
+- screenshots/screen_YYYY-MM-DD_HH-MM-SS.png
+- trips/trip_YYYY-MM-DD_id.json
+
+Formati ammessi
+.log, .txt, .json, .csv, .png, .jpg, .jpeg, .bmp, .yaml
+
+Regole e buone pratiche
+
+- Inserire qui solo i tipi di file elencati; evitare binari non correlati o librerie.
+- Tenere i file sensibili separati e minimizzati; non salvare dati personali non necessari.
+- Preferire file compressi/archiviati o rotazione log per grandi quantità di dati.
+- Usare nomi descrittivi e versioning per i preset.
+
+Manutenzione
+
+- Eliminare i dati salvati se gia caricati in web.
+- Pulizia periodica di screenshot/log non necessari.
+- Implementare rotazione log e policy di retention (es. conservare ultimi 2 giorni).

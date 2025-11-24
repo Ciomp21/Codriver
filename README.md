@@ -7,16 +7,16 @@ All libraries are auto-installed through PlatformIO.
 
 1. Install **VS Code**
 2. Install **PlatformIO extension**
-3. Clone this repo:
-
-4. Open the folder in VS Code  
+3. Clone this repo
+4. Open the folder in VS Code
 5. Click **PlatformIO → Upload**
 
 Done. No manual library installation needed.
 
 ## 📁 Structure
-- `/src/main.cpp` — firmware source  
-- `/data/` — files for SPIFFS/LittleFS  
-- `/lib/` — custom local libraries  
-- `/include/` — headers/config  
-- `platformio.ini` — manages dependencies  
+
+- `/src/main.cpp` — firmware source
+- `/data/` — files for SPIFFS/LittleFS
+- `/lib/` — custom local libraries
+- `/include/` — headers/config
+- `platformio.ini` — manages dependencies
