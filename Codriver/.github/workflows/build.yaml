@@ -1,0 +1,17 @@
+# Checks for building the ESP32 project using PlatformIO
+# Eliminates the possibility of broken commits affecting the build process
+
+name: Build ESP32
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: platformio/action-core@v1
+        with:
+          platformio-version: latest
+      - run: platformio run
+        working-directory: ./Codriver
