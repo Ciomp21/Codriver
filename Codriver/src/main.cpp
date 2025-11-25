@@ -103,12 +103,82 @@
 
 // -------------------------------------------------- Setup & Loop -------------------------------------------------
 
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
+
+#include <obd.h>
+#include <sensors.h>
+#include <server.h>
+#include <render.h>
+#include "liveData.h"
+
+LiveData liveData; // Use global struct to hold live data (must be protected with mutex if accessed from multiple tasks)
+
+void SensorTask(void *pvParameters)
+{
+  const TickType_t xFrequency = pdMS_TO_TICKS(5);
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
+  InitObd();
+  InitSensors();
+
+  for (;;)
+  {
+    // Read sensors
+    ReadObdData(&liveData);
+    ReadSensorData(&liveData);
+
+    xTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+void DisplayTask(void *pvParameters)
+{
+  const TickType_t xFrequency = pdMS_TO_TICKS(20);
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
+  initDisplay();
+
+  for (;;)
+  {
+    // Control the display and update the template based on sensor data
+    DisplayRefresh(&liveData);
+
+    xTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
 void setup()
 {
   // put your setup code here, to run once:
+  Serial.begin(115200);
+
+  xTaskCreate(
+      SensorTask,
+      "SensorTask",
+      2048,
+      NULL,
+      1,
+      NULL);
+
+  xTaskCreate(
+      DisplayTask,
+      "DisplayTask",
+      2048,
+      NULL,
+      1,
+      NULL);
+
+  startWebServer();
+
+  vTaskStartScheduler();
 }
 
 void loop()
 {
   // put your main code here, to run repeatedly:
+  for (;;)
+  {
+  }
 }

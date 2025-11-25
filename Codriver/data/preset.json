@@ -1,0 +1,16 @@
+
+
+{
+  "rpm_screen": [
+    { "type": "big_number", "field": "rpm", "x": 10, "y": 10 },
+    { "type": "needle", "field": "rpm", "x": 10, "y": 120, "w": 200, "h": 20 }
+  ],
+
+  "speed_screen": [
+    { "type": "big_number", "field": "speed", "x": 20, "y": 20 }
+  ],
+
+  "acc_screen": [
+    { "type": "vector", "field": "accel", "x": 0, "y": 0 }
+  ]
+}

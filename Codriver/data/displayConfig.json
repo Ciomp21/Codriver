@@ -1,0 +1,6 @@
+{
+    "mode": "performance",  
+    "display1": "rpm_screen",
+    "display2": "speed_screen",
+    "display3": "acc_screen"
+}
