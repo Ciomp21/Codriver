@@ -7,6 +7,11 @@ void startWebServer()
   // Initialize and start the web server
   AsyncWebServer server(80);
 
+    Serial.begin(96000);
+    delay(100);
+    Serial.print("Web Server IP: ");
+    Serial.println(WiFi.localIP().toString());
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(200, "text/plain", "Hello, this is Codriver Webserver!"); });
 
@@ -17,7 +22,6 @@ void startWebServer()
             { 
                 // Handle preset update (this is just a placeholder)
                 
-
                 ChangePreset();
                 
                 // Respond with success message

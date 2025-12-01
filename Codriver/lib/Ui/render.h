@@ -5,7 +5,7 @@
 #include "widgets.h"
 #include <vector>
 
-void initDisplay();
+void InitDisplays();
 void DisplayRefresh(LiveData* data);
 void ChangePreset();
 

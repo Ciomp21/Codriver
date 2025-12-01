@@ -103,76 +103,90 @@
 
 // -------------------------------------------------- Setup & Loop -------------------------------------------------
 
-#include <FreeRTOS.h>
-#include <task.h>
-#include <semphr.h>
-
 #include <obd.h>
 #include <sensors.h>
 #include <server.h>
 #include <render.h>
-#include "liveData.h"
+#include <liveData.h>
+
 
 LiveData liveData; // Use global struct to hold live data (must be protected with mutex if accessed from multiple tasks)
 
-void SensorTask(void *pvParameters)
+
+void RecomputeDerivedData()
 {
-  const TickType_t xFrequency = pdMS_TO_TICKS(5);
-  TickType_t xLastWakeTime = xTaskGetTickCount();
+    // Compute any derived data from the raw sensor/OBD2 data
+    // For example, calculate fuel consumption from MAF and speed
 
-  InitObd();
-  InitSensors();
+    if (liveData.speed > 0)
+    {
+        // Fuel consumption (L/100km) = (MAF (g/s) * 3600) / (14.7 * 720 * speed (km/h))
+        liveData.fuelConsumption = (liveData.maf * 3600.0f) / (14.7f * 720.0f * liveData.speed);
+    }
+    else
+    {
+        liveData.fuelConsumption = 1.0f; // Base consumption when idle
+    }
 
-  for (;;)
-  {
-    // Read sensors
-    ReadObdData(&liveData);
-    ReadSensorData(&liveData);
+    // Trip distance could be computed by integrating speed over time
 
-    xTaskDelayUntil(&xLastWakeTime, xFrequency);
-  }
+    static unsigned long lastUpdateTime = 0;
+    unsigned long currentTime = millis();
+
+    if (lastUpdateTime != 0)
+    {
+      // Time passed from the last update in hours
+        float deltaTimeHours = (currentTime - lastUpdateTime) / 3600000.0f; // Convert ms to hours
+
+      // Approximate trip distance increment = speed * time (Fast enough for small intervals)
+        liveData.tripDistance += liveData.speed * deltaTimeHours; // distance = speed * time
+    }
+    lastUpdateTime = currentTime;
+
+    // Trip fuel used = integrate fuel consumption over distance (Just an approximation here but good enough)
+    liveData.tripFuelUsed += liveData.fuelConsumption * liveData.speed * ((currentTime - lastUpdateTime) / 3600000.0f); // L/100km * km = L
+
+    // Trip duration in seconds
+    liveData.tripDuration += (currentTime - lastUpdateTime) / 1000.0f; // Convert ms to seconds
+
+    if (liveData.tripDuration > 0)
+    {
+        liveData.averageSpeed = liveData.tripDistance / (liveData.tripDuration / 3600.0f); // km/h
+        liveData.averageFuelConsumption = (liveData.tripFuelUsed / liveData.tripDistance) * 100.0f; // L/100km
+    }
+
+    
 }
 
-void DisplayTask(void *pvParameters)
+void BackupLiveTripData(LiveData *data)
 {
-  const TickType_t xFrequency = pdMS_TO_TICKS(20);
-  TickType_t xLastWakeTime = xTaskGetTickCount();
+    // Backup live trip data to non-volatile storage if needed
+    // This is a placeholder function; actual implementation would depend on the storage method used
 
-  initDisplay();
+    // Probably every 30 seconds or so to avoid excessive writes to flash memory
+    // Just write it on a Json file with a certain format
 
-  for (;;)
-  {
-    // Control the display and update the template based on sensor data
-    DisplayRefresh(&liveData);
 
-    xTaskDelayUntil(&xLastWakeTime, xFrequency);
-  }
+    // Web server can give back the last trip data on request
+
+
+    // IMPORTANT!!!! : How to manage old trip data? Overwrite last trip? Save multiple trips with timestamps?
 }
 
 void setup()
 {
   // put your setup code here, to run once:
-  Serial.begin(115200);
+  Serial.begin(96000);
 
-  xTaskCreate(
-      SensorTask,
-      "SensorTask",
-      2048,
-      NULL,
-      1,
-      NULL);
+  InitSensors();
 
-  xTaskCreate(
-      DisplayTask,
-      "DisplayTask",
-      2048,
-      NULL,
-      1,
-      NULL);
+  InitObd();
+
+  InitDisplays();
 
   startWebServer();
 
-  vTaskStartScheduler();
+  liveData = {}; // Initialize live data struct to zero values
 }
 
 void loop()
@@ -180,5 +194,21 @@ void loop()
   // put your main code here, to run repeatedly:
   for (;;)
   {
+    // Read sensors with delays to allow sensor read time
+    // Temperature/humidity sensor needs time to read
+    // Other sensors can be read quickly
+    ReadSensorData(&liveData);
+
+    // Read OBD2 data with some sort of delay to avoid overwhelming the bus
+    ReadObdData(&liveData);
+
+    RecomputeDerivedData();
+
+    BackupLiveTripData(&liveData);
+
+    // Might use a modified parameter to control update rate of display
+    DisplayRefresh(&liveData);
+
+    delay(2000);
   }
 }

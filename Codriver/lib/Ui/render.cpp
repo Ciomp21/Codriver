@@ -11,7 +11,7 @@ TFT_eSPI tft3 = TFT_eSPI(); // Invoke library
 
 Preset currentPreset[3]; // Presets for three displays
 
-void initDisplay()
+void InitDisplays()
 {
 
     tft1.init();
