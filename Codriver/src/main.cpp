@@ -195,13 +195,13 @@ void loop()
   for (;;)
   {
     // Read sensors with delays to allow sensor read time
+    
     // Temperature/humidity sensor needs time to read
-    // Other sensors can be read quickly
     ReadSensorData(&liveData);
 
     // Read OBD2 data with some sort of delay to avoid overwhelming the bus
     ReadObdData(&liveData);
-
+    
     RecomputeDerivedData();
 
     BackupLiveTripData(&liveData);
