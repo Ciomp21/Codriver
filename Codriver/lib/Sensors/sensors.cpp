@@ -6,13 +6,24 @@
 
 DHT dht(DHTPIN, DHTTYPE);
 
-void InitSensors()
+void i2c_communicate(uint8_t reg, uint8_t data)
 {
-    // Initialize Temperature/Humidity sensor
-    InitTempHumiditySensor();
+    // Starts I2C transmission to the MPU6050
+    // Write the register address and the data byte
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(reg);
+    Wire.write(data);
+    Wire.endTransmission();
+}
 
-    // Initialize IMU sensor here
-    InitIMUSensor();
+void i2cReadBytes(uint8_t reg, uint8_t len, uint8_t *buffer)
+{
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(reg);
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_ADDR, len, true);
+    for (int i = 0; i < len; i++)
+        buffer[i] = Wire.read();
 }
 
 void InitTempHumiditySensor()
@@ -49,37 +60,26 @@ void InitIMUSensor()
     Wire.setClock(400000); // Set I2C frequency to 400kHz
 
     // Wake up the IMU sensor (MPU6050) by writing to the PWR_MGMT_1 register
-    i2cWrite(0x6B, 0x00);
+    i2c_communicate(0x6B, 0x00);
 
-    i2cWrite(0x19, 0x07); // 1 kHz / (1+7) = 125 Hz
+    i2c_communicate(0x19, 0x07); // 1 kHz / (1+7) = 125 Hz
 
-    i2cWrite(0x1A, 0x03); // DLPF = 3 → BW=44 Hz (stabile per auto)
+    i2c_communicate(0x1A, 0x03); // DLPF = 3 → BW=44 Hz (stabile per auto)
 
-    i2cWrite(0x1B, 0x08); // Gyro full scale ±500°/s
+    i2c_communicate(0x1B, 0x08); // Gyro full scale ±500°/s
 
-    i2cWrite(0x1C, 0x08); // Accel full scale ±4g
+    i2c_communicate(0x1C, 0x08); // Accel full scale ±4g
 
     Serial.println("MPU6050 configured");
 }
 
-void i2cWrite(uint8_t reg, uint8_t data)
+void InitSensors()
 {
-    // Starts I2C transmission to the MPU6050
-    // Write the register address and the data byte
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(reg);
-    Wire.write(data);
-    Wire.endTransmission();
-}
+    // Initialize Temperature/Humidity sensor
+    InitTempHumiditySensor();
 
-void i2cReadBytes(uint8_t reg, uint8_t len, uint8_t *buffer)
-{
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(reg);
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU_ADDR, len, true);
-    for (int i = 0; i < len; i++)
-        buffer[i] = Wire.read();
+    // Initialize IMU sensor here
+    InitIMUSensor();
 }
 
 // ==================================================================
@@ -142,5 +142,4 @@ void ReadSensorData(LiveData *data)
 
         lastIMUReadTime = currentMillis;
     }
-
 }
