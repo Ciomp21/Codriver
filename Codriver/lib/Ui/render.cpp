@@ -11,7 +11,7 @@ void InitDisplays()
     // Other display initialization code can go here
 }
 
-void DisplayRefresh(const LiveData *data)
+void DisplayRefresh(const Values *data)
 {
 }
 

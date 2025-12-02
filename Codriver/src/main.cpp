@@ -109,69 +109,7 @@
 #include <render.h>
 #include <liveData.h>
 
-
-LiveData liveData; // Use global struct to hold live data (must be protected with mutex if accessed from multiple tasks)
-
-
-void RecomputeDerivedData()
-{
-    // Compute any derived data from the raw sensor/OBD2 data
-    // For example, calculate fuel consumption from MAF and speed
-
-    if (liveData.speed > 0)
-    {
-        // Fuel consumption (L/100km) = (MAF (g/s) * 3600) / (14.7 * 720 * speed (km/h))
-        liveData.fuelConsumption = (liveData.maf * 3600.0f) / (14.7f * 720.0f * liveData.speed);
-    }
-    else
-    {
-        liveData.fuelConsumption = 1.0f; // Base consumption when idle
-    }
-
-    // Trip distance could be computed by integrating speed over time
-
-    static unsigned long lastUpdateTime = 0;
-    unsigned long currentTime = millis();
-
-    if (lastUpdateTime != 0)
-    {
-      // Time passed from the last update in hours
-        float deltaTimeHours = (currentTime - lastUpdateTime) / 3600000.0f; // Convert ms to hours
-
-      // Approximate trip distance increment = speed * time (Fast enough for small intervals)
-        liveData.tripDistance += liveData.speed * deltaTimeHours; // distance = speed * time
-    }
-    lastUpdateTime = currentTime;
-
-    // Trip fuel used = integrate fuel consumption over distance (Just an approximation here but good enough)
-    liveData.tripFuelUsed += liveData.fuelConsumption * liveData.speed * ((currentTime - lastUpdateTime) / 3600000.0f); // L/100km * km = L
-
-    // Trip duration in seconds
-    liveData.tripDuration += (currentTime - lastUpdateTime) / 1000.0f; // Convert ms to seconds
-
-    if (liveData.tripDuration > 0)
-    {
-        liveData.averageSpeed = liveData.tripDistance / (liveData.tripDuration / 3600.0f); // km/h
-        liveData.averageFuelConsumption = (liveData.tripFuelUsed / liveData.tripDistance) * 100.0f; // L/100km
-    }
-
-    
-}
-
-void BackupLiveTripData(LiveData *data)
-{
-    // Backup live trip data to non-volatile storage if needed
-    // This is a placeholder function; actual implementation would depend on the storage method used
-
-    // Probably every 30 seconds or so to avoid excessive writes to flash memory
-    // Just write it on a Json file with a certain format
-
-
-    // Web server can give back the last trip data on request
-
-
-    // IMPORTANT!!!! : How to manage old trip data? Overwrite last trip? Save multiple trips with timestamps?
-}
+Values Datas; // Global live data structure
 
 void setup()
 {
@@ -186,7 +124,9 @@ void setup()
 
   startWebServer();
 
-  liveData = {}; // Initialize live data struct to zero values
+  InitLiveData(&Datas);
+
+  delay(1000); // Allow time for everything to initialize
 }
 
 void loop()
@@ -195,20 +135,18 @@ void loop()
   for (;;)
   {
     // Read sensors with delays to allow sensor read time
-    
-    // Temperature/humidity sensor needs time to read
-    ReadSensorData(&liveData);
+    ReadSensorData(&Datas);
 
     // Read OBD2 data with some sort of delay to avoid overwhelming the bus
-    ReadObdData(&liveData);
-    
-    RecomputeDerivedData();
+    ReadObdData(&Datas);
 
-    BackupLiveTripData(&liveData);
+    // Update derived data and trip calculations
+    RecomputeDerivedData(&Datas);
 
-    // Might use a modified parameter to control update rate of display
-    DisplayRefresh(&liveData);
+    BackupLiveTripData(&Datas);
 
-    delay(2000);
+    DisplayRefresh(&Datas);
+
+    delay(1000); // Main loop delay to control update rate
   }
 }
