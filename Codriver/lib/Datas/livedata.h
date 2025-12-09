@@ -41,7 +41,6 @@ struct Values
     float engineLoad;      // in percentage
     int gearSuggestion;    // suggested gear for optimal fuel efficiency
     int extimatedRange;    // in km
-    int EcoScore;          // overall eco score
     int clockTime;         // in HHMM format
 
     // Trip data

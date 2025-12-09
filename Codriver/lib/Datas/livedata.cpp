@@ -86,6 +86,8 @@ void updateTripInfo(Values *liveData)
         liveData->averageFuelConsumption = (liveData->tripFuelUsed / liveData->tripDistance) * 100.0f; // L/100km
     }
 
+    liveData->peakSpeed = (liveData->speed > liveData->peakSpeed) ? liveData->speed : liveData->peakSpeed;
+
     // Update Last Update Time
     lastUpdateTimeTrip = currentTime;
 }
@@ -139,6 +141,28 @@ void RecomputeDerivedData(Values *liveData)
     {
         liveData->gearSuggestion = liveData->gear - 1;
     }
+
+    // ====== TODO : Compute EcoScore based on driving behavior ======
+
+    // Idea is to update it every 10 seconds or so
+    // Then just save the score in an infite buffer and average it out for tripEcoScore
+    // Could factor in smoothness of acceleration, braking, speed consistency, etc.
+
+    // ====== TODO : Compute forces from IMU data ======
+
+    float accelMagnitude = sqrt(liveData->accelX * liveData->accelX +
+                                liveData->accelY * liveData->accelY +
+                                liveData->accelZ * liveData->accelZ);
+
+    liveData->accelerationForce = liveData->accelX; // Longitudinal acceleration
+    liveData->corneringForce = liveData->accelY;    // Lateral acceleration
+    liveData->brakingForce = -liveData->accelZ;     // Vertical acceleration so invert for braking
+
+    // The events detection should be based on thresholds of these forces
+
+    liveData->hardAccelerationEvents += (liveData->accelerationForce > 2.5f) ? 1 : 0;
+    liveData->sharpTurnEvents += (abs(liveData->corneringForce) > 2.5f) ? 1 : 0;
+    liveData->hardBreakingEvents += (liveData->brakingForce > 2.5f) ? 1 : 0;
 
     // Update trip information every 500 ms
     if (millis() - lastUpdateTimeTrip >= delayTrip)
