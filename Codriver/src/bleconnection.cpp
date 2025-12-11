@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "screen.hpp"
+#include "global.hpp"
 
 void parseJson(const char* jsonStr);
 
@@ -17,6 +18,7 @@ class ConfigCallback : public BLECharacteristicCallbacks {
     uint8_t* data = pCharacteristic->getData();
     size_t length = pCharacteristic->getValue().length();
     
+    //copio localmente il buffer della risposta
     if (length > 0 && length < 128) {
         memcpy(jsonBuffer, data, length);
         jsonBuffer[length] = '\0';
@@ -51,14 +53,24 @@ void parseJson(const char* jsonStr) {
   int r = doc["r"] | 0;
   int g = doc["g"] | 0;
   int b = doc["b"] | 0;
-  enum types t = (enum types) (doc["type"] | 0);
-  // bm fa da switch
-  int index = doc["bm"] | 0; 
-
   uint16_t new_color = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+  int index = doc["bm"] | 0; 
+  
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+      ui_color = new_color;
+      saveState("color", ui_color);
+      saveState("screen", ui_index);
 
-  color = new_color;
-  changeBitmap(t, index);
-
-
+      if (ui_index < 0 || ui_index >= TOTAL_BITMAPS) {
+        Serial.printf("ERRORE: Indice bitmap non valido: %d\n", index);
+        return;
+      } else {
+        ui_index = index; 
+      }
+      
+      xSemaphoreGive(xUIMutex); 
+      changeBitmap();
+  } else {
+      Serial.println("❌ BLE: Mutex Timeout. Impossibile aggiornare UI.");
+  }
 }

@@ -5,8 +5,7 @@
 #include <LittleFS.h>
 #include <FS.h>
 
-// questo serve per salvare lo stato ad ogni cambiamento
-#include <Preferences.h>
+#include "global.hpp"
 
 // pin dello schermetto
 #define TFT_MOSI 11
@@ -22,34 +21,14 @@
 #define LINE_BUFFER_SIZE (240 * 2) 
 
 // Definizione Assunta (Dovrebbe essere in un .hpp per codice esterno)
-enum types{
-  GAUGE,
-  TEMP,
-  ACCEL,
-  NULLTYPE,
-};
-
-Preferences preferences;
 Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCLK, TFT_MOSI);
 Arduino_GFX *gfx = new Arduino_GC9A01(bus, TFT_RST, 0);
 
-int color = 0xFFFFFF;
 float deg = 0;
 float val = 0;
-enum types currentType = NULLTYPE;
 
 static uint16_t lineBuffer[240]; 
-const char* const bitmaps[] = {
-    "/boost.bin",
-    "/gforce.bin"
-};
-const int TOTAL_BITMAPS = sizeof(bitmaps) / sizeof(bitmaps[0]);
-
-void saveState(const char* state, int val);
-int loadState(const char* state);
-void changeBitmap(enum types t, int index);
-
-
+void changeBitmap();
 
 // Preparea lo schermo e LittleFS
 void setupScreen(){
@@ -64,34 +43,33 @@ void setupScreen(){
     while(true); 
   }
   Serial.println("✅ LittleFS avviato.");
-
-  color = loadState("color");
-  int index = loadState("screen");
-  enum types t = (enum types) loadState("type");
-
-  changeBitmap(t, index);
-  
 }
 
 //utilizziamo bitmap presalvate all'interno dell'esp
-void changeBitmap(enum types t, int index){
-  if (index < 0 || index >= TOTAL_BITMAPS) {
-      Serial.printf("ERRORE: Indice bitmap non valido: %d\n", index);
-      return;
+void changeBitmap(){
+  //anche qui ho bisogno di controllare i semafori
+  // se non lo ricevo entro 100 ms allora uso quelli vecchi
+
+  int current_index;
+
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      current_index = ui_index;
+
+      xSemaphoreGive(xUIMutex);
+  } else {
+      current_index = ui_index;
   }
 
   // apro un file per leggere la bitmap e poi lo chiudo
-  File file = LittleFS.open(bitmaps[index], "r");
+  File file = LittleFS.open(OBDScreens[current_index].bitmap_file, "r");
   if (!file) {
-    Serial.printf("ERRORE: Impossibile aprire il file: %s\n", bitmaps[index]); 
+    Serial.printf("ERRORE: Impossibile aprire il file: %s\n", OBDScreens[current_index].bitmap_file); 
     return;
   }
 
-  currentType = t;
   gfx->fillScreen(BLACK); // Puliamo lo schermo
   
-  // alla fine la soluzione migliore e' scrivere riga per riga
-  if (t != NULLTYPE) {
+  if (OBDScreens[current_index].type != NULLTYPE) {
     for (int16_t i = 0; i < 240; i++) {
         file.readBytes((char*)lineBuffer, LINE_BUFFER_SIZE);
         gfx->draw16bitBeRGBBitmap(0, i, lineBuffer, 240, 1); 
@@ -99,12 +77,6 @@ void changeBitmap(enum types t, int index){
   }
 
   file.close();
-
-  // salvo gli stati
-
-  saveState("color", color);
-  saveState("screen", index);
-  saveState("type", currentType);
 }
 
 float toAngle(float value, float minVal, float maxVal, float startAngle, float sweepAngle){
@@ -155,15 +127,25 @@ void drawLineFromCenter(float degrees, int length, int thickness, int color) {
 // domanda lecita: salviamo tutte le bitmap sull'esp o gliele passiamo
 // come argomento? dobbiamo testare
 
-void drawGauge(float value, float min, float max){
+void drawGauge(float value, float min, float max, int decimals){
   // calcolo angolo
 
   float lastdeg = deg;
   deg = toAngle(value, min, max, 130.0, 200.0);
 
+  //anche qui prendo il controllo delle variabili globali, oppure uso quelle di prima
+  // se non riesco
+  int current_color;
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+      current_color = ui_color;
+      xSemaphoreGive(xUIMutex);
+  } else {
+      current_color = ui_color; 
+  }
+
   // copro la scritta di prima di nero e poi la ridisegno
   drawLineFromCenter(lastdeg, LENGTH, 5, BLACK);
-  drawLineFromCenter(deg, LENGTH, 5, color);
+  drawLineFromCenter(deg, LENGTH, 5, current_color);
 
   // Se il valore non è cambiato, non ridisegno il testo (anti-flicker)
   if (abs(value - val) < 0.001) return;
@@ -172,7 +154,7 @@ void drawGauge(float value, float min, float max){
   gfx->setTextSize(3);
   gfx->setCursor(90, 150);
   gfx->setTextColor(BLACK);
-  gfx->print(val, 2);
+  gfx->print(val, decimals);
 
   val = value;
 
@@ -180,17 +162,27 @@ void drawGauge(float value, float min, float max){
   gfx->setTextSize(3);
   gfx->setCursor(90, 150);
   gfx->setTextColor(WHITE);
-  gfx->print(value, 2);
+  gfx->print(value, decimals);
 }
 
-void drawScreen(float value, float min, float max){
-  // per ogni metodo di stampa possiamo inserire un nuovo switch
-  switch (currentType){
+void drawScreen(float value){
+
+  int current_index;
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+      current_index = ui_index;
+      xSemaphoreGive(xUIMutex);
+  } else {
+      current_index = ui_index;
+  }
+
+  DataTypes_t screen = OBDScreens[current_index];
+  switch (screen.type){
     case GAUGE:
-      drawGauge(value, min, max);
+      drawGauge(value, screen.min, screen.max, screen.decimals);
     break;
+
+    //altre definizioni
     default:
-      //cancello
       gfx->setTextSize(3);
       gfx->setCursor(120, 120);
       gfx->setTextColor(BLACK);
@@ -203,19 +195,10 @@ void drawScreen(float value, float min, float max){
       gfx->setCursor(120, 120);
       gfx->setTextColor(WHITE);
       gfx->print(value, 2);
+
     break;
   }
-}
 
-void saveState(const char* state, int val) {
-    preferences.begin("infotainment", false); // Apre lo spazio di archiviazione
-    preferences.putInt(state, val);  // Salva l'indice
-    preferences.end();
-}
 
-int loadState(const char* state) {
-    preferences.begin("infotainment", true); // Apre in sola lettura
-    int ret = preferences.getInt(state, 0); // 0 è il valore di default
-    preferences.end();
-    return ret;
+
 }

@@ -5,9 +5,6 @@
 
 // dichiara le funzioni
 void setupWifi();
-int getRPM();
-int getFuel();
-int getBoost();
-long sendOBDCommand(String, int);
+long sendOBDCommand();
 
 #endif

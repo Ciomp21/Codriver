@@ -1,4 +1,5 @@
     #include <Wifi.h>
+    #include "global.hpp"
 
     const char* ssid = "V-LINK";
     const char* password = "";
@@ -74,22 +75,41 @@
     // questa funzione invia il comando e restituisce la risposta sotto forma 
     // di valore convertito in long
 
-    long sendOBDCommand(String cmd, int resbytes) {
+    long sendOBDCommand() {
+
+        int current_id;
+
+        if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            current_id = ui_index;
+
+            xSemaphoreGive(xUIMutex);
+        } else {
+            current_id = ui_index;
+        }
+
+
         // controlla la connessione e prova a ristabilirla
+        int resbytes = OBDScreens[current_id].resbytes;
+
         if (checkConnection() != 0) return -1; 
         if (resbytes > 4 || resbytes < 1) return -1;
 
         // invia la richiesta
-        client.print("01" + cmd + "\r");
+        String command = "01";
+        command += OBDScreens[current_id].obd_code;
+        command += "\r";
+        client.print(command);
         // delay(200);
 
         String response = "";
         unsigned long start = millis();
         // timeout di 50ms per ricevere la risposta
         // FORSE ECCESSIVO DA RIVEDERE
-        while (millis() - start < 50) {
+        while (millis() - start < 200) {
             while (client.available()) {
                 char c = client.read();
+                Serial.print("Tempo di risposta: ~");
+                Serial.println(millis() - start);
                 if (c != '\r' && c != '\n' && c != '>') response += c;
             }
         }
@@ -97,7 +117,7 @@
         response.replace(" ", "");
         response.toUpperCase();
 
-        int index = response.indexOf(String("41") + cmd);
+        int index = response.indexOf(String("41") + OBDScreens[current_id].obd_code);
         if (index == -1) return -1;
 
         // verifica che ci siano abbastanza caratteri
@@ -110,17 +130,6 @@
             value = (value << 8) | byteVal;
         }
 
-        return value;
-    }
-
-    // funzioni utili per prendere i dati
-    // si potrebbero sostituire con delle funzioni passate per argomento
-
-    int getRPM() {
-        return (int) sendOBDCommand("0C", 2)/4;
-    }
-
-    int getBoostBar(){
-            return (int) sendOBDCommand("0B", 1)/100 - 1;
+        return OBDScreens[current_id].interpretation(value);
     }
 
