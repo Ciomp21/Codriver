@@ -1,0 +1,62 @@
+# TODO e modifiche apportate
+
+## Modifiche apportate
+È stato introdotto un nuovo metodo di salvataggio delle bitmap. Ora utiilizzeremo una partizione della memoria flash per salvare tutte le bitmap. 
+
+Questo ci permette di sfruttare l'effettivo spazio che abbiamo a disposizione al massimo ma soprattutto evita problematiche di passaggio dati via bluetooth, che è molto delicato.
+
+### Configurazione del File System (Cruciale)
+
+Per poter archiviare le bitmap senza saturare la memoria del codice (partizione APP), si utilizza uno schema di partizionamento personalizzato.
+
+1.  Assicurati che il file `partitions.csv` sia nella root del progetto:
+    ```csv
+    # Nome, Tipo, SottoTipo, Offset, Dimensione
+    nvs, data, nvs, 0x9000, 0x5000,
+    otadata, data, ota, 0xe000, 0x2000,
+    boot, app, ota_0, 0x10000, 0x200000, ; 2MB per il Firmware
+    spiffs, data, spiffs, 0x210000, 0x1B0000, ; 1.7MB per gli Asset
+    ```
+2.  Nel file `platformio.ini`, verifica la configurazione LittleFS:
+    ```ini
+    board_build.partitions = partitions.csv
+    board_build.filesystem = littlefs
+    board_upload.maximum_size = 2097152
+    ```
+
+### 3. Caricamento delle Bitmap
+
+Le immagini bitmap devono essere in formato **RAW RGB565 (.bin)** e collocate nella cartella `data/`.
+
+* **Conversione:** Utilizza un convertitore esterno (come LVGL Image Converter) per generare i file binari.
+* **Posizionamento:** I file `.bin` vanno nella cartella `data/` (es: `data/boost.bin`).
+* **Upload:** utilizza l'opzione platform/Upload Filesystem Image
+    
+
+---
+
+## 💻 Dettagli del Codice e Funzionamento
+
+### Persistenza dello Stato
+
+Lo stato dell'ultima schermata visualizzata e l'ultimo colore vengono salvati nella memoria Flash tramite NVS (Non-Volatile Storage), utilizzando la libreria `Preferences.h`.
+
+* **Chiavi NVS:**
+    * `screen`: Ultimo indice della bitmap (es. 0 per GAUGE).
+    * `type`: Ultimo tipo di schermata (`enum types`).
+    * `color`: Ultimo colore RGB impostato.
+
+Le funzioni `saveState(key, value)` e `loadState(key)` sono responsabili di questa operazione, garantendo che l'ESP32 si riavvii sul display corretto.
+
+### Logica di Disegno (`changeBitmap`)
+
+La funzione `changeBitmap` legge il file binario dalla partizione LittleFS riga per riga (`for (int16_t i = 0; i < 240; i++)`) e utilizza un piccolo buffer di 480 byte (`lineBuffer`) per inviare i dati al display tramite `gfx->draw16bitBeRGBBitmap(..., 240, 1)`. **Questo assicura che la RAM non venga mai saturata.**
+
+```cpp
+// Estratto dalla funzione changeBitmap
+if (t != NULLTYPE) {
+    for (int16_t i = 0; i < 240; i++) {
+        file.readBytes((char*)lineBuffer, LINE_BUFFER_SIZE);
+        gfx->draw16bitBeRGBBitmap(0, i, lineBuffer, 240, 1); 
+    }
+}
