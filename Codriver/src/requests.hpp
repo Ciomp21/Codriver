@@ -5,6 +5,8 @@
 
 // dichiara le funzioni
 void setupWifi();
-long sendOBDCommand();
+void checkWifiStatus();
+int checkConnection();
+float sendOBDCommand();
 
 #endif

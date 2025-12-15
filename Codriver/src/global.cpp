@@ -4,10 +4,15 @@
 #include <Arduino.h> 
 //definizione di tutto l'hpp
 
+SemaphoreHandle_t xSerialMutex = NULL; 
 SemaphoreHandle_t xUIMutex = NULL;
 QueueHandle_t xObdDataQueue = NULL; 
+SemaphoreHandle_t xReconnMutex = NULL;
+volatile bool is_reconnect_needed = false;
+
+
 volatile int ui_color = 0xFFFFFF; 
-volatile int ui_index = 0;
+volatile int ui_index = 1;
 
 Preferences preferences;
 
@@ -16,7 +21,7 @@ float rpm(long raw_val) {
 }
 
 float boost(long raw_val) {
-    return ((float)raw_val / 100.0) - 1.0; 
+    return (((float)raw_val / 100.0) - 1.0); 
 }
 
 const DataTypes_t OBDScreens[] = {
@@ -29,6 +34,16 @@ const DataTypes_t OBDScreens[] = {
         .max = 5400.0,
         .resbytes = 2,
         .interpretation = rpm
+    },
+    {
+        .bitmap_file = "/boost.bin",
+        .type = GAUGE,
+        .decimals = 2,
+        .obd_code = "0B", 
+        .min = -0.5,
+        .max = 2.0,
+        .resbytes = 1,
+        .interpretation = boost
     },
     {
         .bitmap_file = "/gforce.bin",
