@@ -6,15 +6,22 @@
 #include <freertos/queue.h>
 #include <Preferences.h>
 
+enum sensors{
+  OBD,
+  ACCEL,
+  TEMP,
+};
+
 enum types{
   GAUGE,
-  TEMP,
-  ACCEL,
+  GRAPH,
+  THERMOMETER,
   NULLTYPE,
 };
 
 typedef struct {
     const char* bitmap_file;   
+    enum sensors sens;
     enum types type;           
     int decimals;                        
     const char* obd_code;                 
@@ -42,6 +49,10 @@ extern volatile bool is_reconnect_needed;
 // queue dati
 extern QueueHandle_t xObdDataQueue; 
 
+// zero del giroscopio
+extern SemaphoreHandle_t xBLEMutex;
+extern volatile float zero_x, zero_y, zero_z;
+
 // prototipi delle funzioni
 extern void saveState(const char* state, int val);
 extern int loadState(const char* state);
@@ -53,6 +64,11 @@ extern void drawScreen(float val);
 extern void checkWifiStatus();
 extern int checkConnection();
 extern float sendOBDCommand();
+extern float ReadTemperature();
+extern float readHumidity();
+extern float ReadAcceleration();
+extern float ReadIncline();
+extern void InitSensors();
 
 // task
 extern void vUITask(void *pvParameters);

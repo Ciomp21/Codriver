@@ -177,6 +177,60 @@
     gfx->print(value, decimals);
   }
 
+  void drawAcceleration(float value){
+
+    float oldax = roundf(((int)(val / 100000) % 10) * 10) / 10.0f;
+    float olday = roundf(((int)(val / 1000) % 100) * 10) / 10.0f;
+    float oldaz = roundf(((int)(val / 10) % 10) * 10) / 10.0f;
+
+    // estraggo i valori
+    float ax = roundf(((int)(value / 100000) % 10) * 10) / 10.0f;
+    float ay = roundf(((int)(value / 1000) % 100) * 10) / 10.0f;
+    float az = roundf(((int)(value / 10) % 10) * 10) / 10.0f;
+
+    if(value == -1) return;
+
+    // Serial.print(value);
+    // Serial.println(" totale");
+    // Serial.print("ax: ");
+    // Serial.println(ax);
+    // Serial.print("ay: ");
+    // Serial.println(ay);
+    // Serial.print("az: ");
+    // Serial.println(az);
+
+    if (abs(value - val) > 0.001) {
+      //cancello
+      gfx->setTextSize(3);
+      gfx->setCursor(50, 100);
+      gfx->setTextColor(BLACK);
+      gfx->print("X:");
+      gfx->print(oldax);
+      gfx->setCursor(50, 140);
+      gfx->print("Y:");
+      gfx->print(olday);
+      gfx->setCursor(50, 180);
+      gfx->print("Z:");
+      gfx->print(oldaz);
+    }
+
+    val = value;
+
+    //scrivo
+    gfx->setTextSize(3);
+    gfx->setCursor(50, 100);
+    gfx->setTextColor(WHITE);
+    gfx->print("X:");
+    gfx->print(ax);
+    gfx->setCursor(50, 140);
+    gfx->print("Y:");
+    gfx->print(ay);
+    gfx->setCursor(50, 180);
+    gfx->print("Z:");
+    gfx->print(az);
+
+  }
+
   void drawScreen(float value){
 
     int current_index;
@@ -191,6 +245,11 @@
     switch (screen.type){
       case GAUGE:
         drawGauge(value, screen.min, screen.max, screen.decimals);
+      break;
+
+      case GRAPH:
+        //altre definizioni
+        drawAcceleration(value);
       break;
 
       //altre definizioni

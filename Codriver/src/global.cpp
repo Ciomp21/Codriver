@@ -11,6 +11,15 @@ SemaphoreHandle_t xReconnMutex = NULL;
 volatile bool is_reconnect_needed = false;
 
 
+
+SemaphoreHandle_t xBLEMutex = NULL;
+volatile float zero_x = 0.0;
+volatile float zero_y = 0.0;
+volatile float zero_z = 0.0;
+
+
+
+
 volatile int ui_color = 0xFFFFFF; 
 volatile int ui_index = 1;
 
@@ -27,6 +36,7 @@ float boost(long raw_val) {
 const DataTypes_t OBDScreens[] = {
     {
         .bitmap_file = "/boost.bin",
+        .sens = OBD,
         .type = GAUGE,
         .decimals = 0,
         .obd_code = "0C", 
@@ -37,6 +47,7 @@ const DataTypes_t OBDScreens[] = {
     },
     {
         .bitmap_file = "/boost.bin",
+        .sens = OBD,
         .type = GAUGE,
         .decimals = 2,
         .obd_code = "0B", 
@@ -47,14 +58,15 @@ const DataTypes_t OBDScreens[] = {
     },
     {
         .bitmap_file = "/gforce.bin",
-        .type = GAUGE,
+        .sens = ACCEL,
+        .type = GRAPH,
         .decimals = 2,
-        .obd_code = "0B", 
-        .min = -0.2,
+        .obd_code = "", 
+        .min = 0,
         .max = 2.0,
-        .resbytes = 1,
-        .interpretation = boost
-    }
+        .resbytes = 0,
+        .interpretation = NULL
+    },
 };
 
 const int TOTAL_BITMAPS = sizeof(OBDScreens) / sizeof(OBDScreens[0]);

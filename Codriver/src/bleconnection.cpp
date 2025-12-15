@@ -43,6 +43,9 @@ void setupBLE() {
 }
 
 void parseJson(const char* jsonStr) {
+  Serial.println("BLE: Messaggio ricevuto:");
+  Serial.println(jsonStr);
+  
   StaticJsonDocument<128> doc; 
   DeserializationError error = deserializeJson(doc, jsonStr);
   if (error) {

@@ -6,10 +6,12 @@
 #include <FS.h>
 #include <Preferences.h>
 #include "freertos/task.h"
+#include "sensor.h"
 
 void vDataFetchTask(void *pvParameters) {
     float value;
     setupWifi(); 
+    InitSensors();
 
     while (1) {
         bool needed;
@@ -26,11 +28,31 @@ void vDataFetchTask(void *pvParameters) {
             continue;
         }
 
-        value = sendOBDCommand(); 
+        int index = 0;
+
+        if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            index = ui_index;
+            xSemaphoreGive(xUIMutex);
+        } else {
+            index = ui_index;
+        }
+
+
+        switch (OBDScreens[index].sens){
+        case ACCEL:
+            value = ReadAcceleration();
+            break;
+        case TEMP:
+            /* code */
+            break;
+        default:
+            value = sendOBDCommand(); 
+            break;
+        }
 
         // per capire meglio
-        Serial.print("valore");
-        Serial.println(value);
+        // Serial.print("valore");
+        // Serial.println(value);
 
         if (value != -1.0) {
             //mando sulla queue solo valori validi
@@ -55,6 +77,8 @@ void vUITask(void *pvParameters) {
 
     while (1) {
         if (xQueueReceive(xObdDataQueue, &received_val, 0) == pdPASS) {
+            Serial.print("UI: Valore ricevuto dalla queue: ");
+            Serial.println(received_val);
             drawScreen(received_val); 
         }
         // passo -1 se voglio semplicemente fare lo smoothing
@@ -106,6 +130,7 @@ void setup() {
     xObdDataQueue = xQueueCreate(5, sizeof(float));
     xSerialMutex = xSemaphoreCreateMutex(); 
     xReconnMutex = xSemaphoreCreateMutex();
+    xBLEMutex = xSemaphoreCreateMutex();
     
     if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE) {
         ui_color = loadState("color");
@@ -144,7 +169,7 @@ void setup() {
     );
 
     changeBitmap();
-    ui_index=1;
+    ui_index=2;
 }
 
 void loop() {

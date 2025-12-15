@@ -19,7 +19,8 @@
 //  Indirizzo I²C del sensore: 0x68
 // Physical connection: SDA -> GPIO21, SCL -> GPIO22
 
-int ReadTemperature();
-int readHumidity();
-float *ReadAcceleration();
+float ReadTemperature();
+float readHumidity();
+float ReadAcceleration();
+float ReadIncline();
 void InitSensors();
