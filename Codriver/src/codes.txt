@@ -1,0 +1,15 @@
+| PID OBD-II | Parametro                                | Bytes restituiti | Formula / Interpretazione |
+| ---------- | ---------------------------------------- | ---------------- | ------------------------- |
+| `0104`     | Calcolo carico motore (%)                | 1                | `% = A * 100 / 255`       |
+| `0105`     | Temperatura liquido raffreddamento (°C)  | 1                | `°C = A - 40`             |
+| `010B`     | Pressione collettore assoluta (MAP, kPa) | 1                | `kPa = A`                 |
+| `010C`     | RPM motore                               | 2                | `RPM = (A*256 + B) / 4`   |
+| `010D`     | Velocità veicolo (km/h)                  | 1                | `km/h = A`                |
+| `010E`     | Anticipo accensione (°)                  | 1                | `° = (A/2) - 64`          |
+| `010F`     | Temperatura aria in ingresso (°C)        | 1                | `°C = A - 40`             |
+| `0110`     | Flusso aria (MAF, g/s)                   | 2                | `g/s = (A*256 + B)/100`   |
+| `0111`     | Tensione throttle                        | 1                | `% = A * 100 / 255`       |
+| `012F`     | Livello carburante (%)                   | 1                | `% = A * 100 / 255`       |
+| `0133`     | Pressione barometrica (kPa)              | 1                | `kPa = A`                 |
+| `0142`     | Tensione ECU / batteria (V)              | 2                | `V = (A*256 + B)/1000`    |
+| `0146`     | Temperatura aria ambiente (°C)           | 1                | `°C = A - 40`             |
