@@ -1,4 +1,5 @@
 #include "sensor.h"
+#include "global.hpp"
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -119,18 +120,19 @@ int16_t gx, gy, gz; // Gyroscope raw values
 // This function reads temperature from DHT11 sensor
 // SHOULD be called with some delay to get accurate readings
 
-float ReadTemperature()
+int readTemperature()
 {
-    return dht.readTemperature();
+    liveData.InternalTemp = dht.readTemperature();
+    return 0;
 }
 
-float readHumidity()
+int readHumidity()
 {
-    return dht.readHumidity();
+    liveData.humidity = dht.readHumidity();
+    return 0;
 }
 
-float ReadAcceleration()
-{
+int readAcceleration(){
     // Read IMU data and update data->accelX, data->accelY, data->accelZ, etc.
 
     uint8_t buffer[14];
@@ -153,14 +155,21 @@ float ReadAcceleration()
     Serial.print(accelZ);
     Serial.println(" g");
 
-    float value = accelX * 100000.0 + accelY * 1000.0 + accelZ * 10.0;
+    if(xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        liveData.accelX = accelX;
+        liveData.accelY = accelY;
+        liveData.accelZ = accelZ;
+        xSemaphoreGive(xDataMutex);
+    }
     // Serial.print(value);
     // Serial.println(" totale");
 
-    return value;
+    return 0;
 }
 
-float ReadIncline()
+int readIncline()
 {
+    // TODO
+    return 0;
   
 }

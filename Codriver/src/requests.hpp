@@ -7,6 +7,6 @@
 void setupWifi();
 void checkWifiStatus();
 int checkConnection();
-float sendOBDCommand();
+int sendOBDCommand(const char* pid);
 
 #endif

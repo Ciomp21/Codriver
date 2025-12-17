@@ -65,7 +65,7 @@ int checkConnection() {
     return -1;
 }
 
-float sendOBDCommand() {
+int sendOBDCommand(const char* pid){
     int current_id;
 
     if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
@@ -78,14 +78,14 @@ float sendOBDCommand() {
     // se non sono connesso allora returno -1
     if (!is_tcp_connected) return -1; 
     
-    int resbytes = OBDScreens[current_id].resbytes;
+    int resbytes = obdCommandMap[pid].resbytes;
     if (resbytes > 4 || resbytes < 1) return -1;
 
     client.setTimeout(200); 
 
     // altrimenti parto conla richiesta
     String command = "01";
-    command += OBDScreens[current_id].obd_code;
+    command += pid;
     command += "\r";
     client.print(command);
 
@@ -98,7 +98,7 @@ float sendOBDCommand() {
     response.replace(" ", "");
     response.toUpperCase();
 
-    int index = response.indexOf(String("41") + OBDScreens[current_id].obd_code);
+    int index = response.indexOf(String("41") + pid);
     if (index == -1) return -1;
 
     if (response.length() < index + 4 + resbytes * 2) return -1;
@@ -110,6 +110,10 @@ float sendOBDCommand() {
         value = (value << 8) | byteVal;
     }
 
-    // interpreto il dato come richiesto
-    return OBDScreens[current_id].interpretation(value);
+    if(xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        obdCommandMap[pid].interpretation(value);
+        xSemaphoreGive(xDataMutex);
+    }
+
+    return 0;
 }

@@ -9,6 +9,8 @@ void setupScreen();
 // chiamate questa funzione per settare la bitmap e specificare il tipo di draw
 // usando l'enum sopra
 void changeBitmap();
+void drawBoost();
+void drawAcceleration();
 
 // disegna automaticamente 
 void drawScreen(float value);

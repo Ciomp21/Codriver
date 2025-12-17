@@ -5,36 +5,71 @@
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include <Preferences.h>
+#include <map>
 
-enum sensors{
-  OBD,
-  ACCEL,
-  TEMP,
-};
-
-enum types{
-  GAUGE,
-  GRAPH,
-  THERMOMETER,
-  NULLTYPE,
-};
+// Here we define the pid we'll use
+#define PID_RPM "0C"
+#define PID_BOOST "0B"
+#define PID_COOLANT_TEMP "05"
+#define PID_BATTERY_VOLTAGE "42"
+#define PID_ENGINE_LOAD "04"
 
 typedef struct {
-    const char* bitmap_file;   
-    enum sensors sens;
-    enum types type;           
-    int decimals;                        
-    const char* obd_code;                 
+    int resbytes;
+    void (*interpretation)(long raw_val);
+} OBDCommand_t;
+
+
+typedef struct {
+    const char* bitmap_file;            
+    int decimals;              
     float min;                       
     float max; 
-    int resbytes;             
-    float (*interpretation)(long raw_val); 
+    void (*drawFunction)();
 } DataTypes_t;
 
-extern float rpm(long raw_val);
-extern float boost(long raw_val);
+typedef struct{
+    float speed;
+    float rpm;
+    float boost;
+    float engineTemp;
+    float oilPressure;
+    float coolantTemp;
+    float intakeAirTemp;
+    float throttlePosition;
+    float fuelLevel;
+    int gearPosition;
+    float steerAngle;
+    float brakePressure;
+
+    float fuelConsumption; 
+    float engineLoad; 
+    int gearSuggestion; 
+
+    int extimatedRange; 
+    int EcoScore; 
+
+    // Temperature/Humidity sensor data
+    float InternalTemp;
+    float ExternalTemp;
+    float humidity;
+
+    // IMU sensor data
+    float accelX;
+    float accelY;
+    float accelZ;
+    float gyroX;
+    float gyroY;
+    float gyroZ;
+
+} DataCollector_t;
+
+extern void rpm(long raw_val);
+extern void boost(long raw_val);
 extern const DataTypes_t OBDScreens[];
+extern std::map<std::string, OBDCommand_t> obdCommandMap;
 extern const int TOTAL_BITMAPS;
+
 
 // semafori vari
 extern SemaphoreHandle_t xSerialMutex; // non so se tenerlo
@@ -47,7 +82,8 @@ extern SemaphoreHandle_t xReconnMutex;
 extern volatile bool is_reconnect_needed; 
 
 // queue dati
-extern QueueHandle_t xObdDataQueue; 
+extern SemaphoreHandle_t xDataMutex;
+extern DataCollector_t liveData;
 
 // zero del giroscopio
 extern SemaphoreHandle_t xBLEMutex;
@@ -60,14 +96,16 @@ extern void setupWifi();
 extern void setupBLE();
 extern void setupScreen();
 extern void changeBitmap();
-extern void drawScreen(float val);
+extern void drawBoost();
+extern void drawAcceleration();
+extern void drawScreen();
 extern void checkWifiStatus();
 extern int checkConnection();
-extern float sendOBDCommand();
-extern float ReadTemperature();
-extern float readHumidity();
-extern float ReadAcceleration();
-extern float ReadIncline();
+extern int sendOBDCommand(const char* pid);
+extern int readTemperature();
+extern int readHumidity();
+extern int readAcceleration();
+extern int readIncline();
 extern void InitSensors();
 
 // task

@@ -8,12 +8,15 @@
 #include "freertos/task.h"
 #include "sensor.h"
 
-void vDataFetchTask(void *pvParameters) {
-    float value;
+
+void vOBDFetchTask(void *pvParameters) {    
     setupWifi(); 
-    InitSensors();
+
+    int cycleCounter = 0;
+    DataCollector_t localSnap = {0};
 
     while (1) {
+        // First of all check if a reconnection is needed
         bool needed;
         if (xSemaphoreTake(xReconnMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
             needed = is_reconnect_needed;
@@ -22,69 +25,87 @@ void vDataFetchTask(void *pvParameters) {
             needed = true; 
         }
 
-        // delay se perdo la connessione
         if (needed) {
             vTaskDelay(pdMS_TO_TICKS(500)); 
             continue;
         }
+        int ret = 0;
+        bool readSuccess = false;
+        int errorCount = 0;
+        
+        // the technique here is to read one OBD parameter at a time in a round-robin fashion
+        // this reduces the load on the OBD bus and increases responsiveness for critical data
 
-        int index = 0;
+        // adding more reads is possibile but not quite easy
+        
+        if (cycleCounter % 2 == 0) {
+            ret =sendOBDCommand(PID_BOOST);
+        } 
+        else {
+            // adjust the % parameter to add more reads here
+            int secondaryIndex = (cycleCounter / 2) % 4; 
 
-        if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-            index = ui_index;
-            xSemaphoreGive(xUIMutex);
-        } else {
-            index = ui_index;
-        }
+            switch (secondaryIndex) {
+                case 0:
+                    ret = sendOBDCommand(PID_COOLANT_TEMP);
+                    break;
 
+                case 1: 
+                    ret = sendOBDCommand(PID_BATTERY_VOLTAGE);
+                    break;
 
-        switch (OBDScreens[index].sens){
-        case ACCEL:
-            value = ReadAcceleration();
-            break;
-        case TEMP:
-            /* code */
-            break;
-        default:
-            value = sendOBDCommand(); 
-            break;
-        }
+                case 2: 
+                    ret =sendOBDCommand(PID_COOLANT_TEMP);
+    
+                    break;
 
-        // per capire meglio
-        // Serial.print("valore");
-        // Serial.println(value);
-
-        if (value != -1.0) {
-            //mando sulla queue solo valori validi
-            xQueueSend(xObdDataQueue, &value, pdMS_TO_TICKS(10));
-        } else {
-            // Dati non validi/connessione persa
-            // forse da cambiare
-            if (xSemaphoreTake(xReconnMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-                is_reconnect_needed = true;
-                xSemaphoreGive(xReconnMutex);
+                case 3: 
+                    ret = sendOBDCommand(PID_ENGINE_LOAD);
+                    break;
+                // add more casese here if needed
+                // these are the slow ones
             }
         }
-        
-        vTaskDelay(pdMS_TO_TICKS(150)); 
+
+        if (!readSuccess && ret == -1) { 
+            errorCount++;
+            if (errorCount > 5) {
+                if (xSemaphoreTake(xReconnMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    is_reconnect_needed = true;
+                    xSemaphoreGive(xReconnMutex);
+                }
+                errorCount = 0;
+            }
+        }
+
+        cycleCounter++;
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
+void vSENSFetchTask(void *pvParameters) {
+    InitSensors();
+
+    while (1) {
+        // Read temperature and humidity, acceleration and incline
+
+        // readTemperature();
+        // readHumidity();
+        readAcceleration();
+        // readIncline();
+
+        vTaskDelay(pdMS_TO_TICKS(150)); 
+    }
+}
 
 void vUITask(void *pvParameters) {
     float received_val;
     setupScreen();
 
     while (1) {
-        if (xQueueReceive(xObdDataQueue, &received_val, 0) == pdPASS) {
-            Serial.print("UI: Valore ricevuto dalla queue: ");
-            Serial.println(received_val);
-            drawScreen(received_val); 
-        }
-        // passo -1 se voglio semplicemente fare lo smoothing
-        drawScreen(-1); 
+        drawScreen(); 
 
-        vTaskDelay(pdMS_TO_TICKS(50)); 
+        vTaskDelay(pdMS_TO_TICKS(10)); 
     }
 }
 
@@ -127,10 +148,10 @@ void setup() {
     delay(1000);
 
     xUIMutex = xSemaphoreCreateMutex();
-    xObdDataQueue = xQueueCreate(5, sizeof(float));
     xSerialMutex = xSemaphoreCreateMutex(); 
     xReconnMutex = xSemaphoreCreateMutex();
     xBLEMutex = xSemaphoreCreateMutex();
+    xDataMutex = xSemaphoreCreateMutex();
     
     if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE) {
         ui_color = loadState("color");
@@ -139,8 +160,18 @@ void setup() {
     }
 
     xTaskCreatePinnedToCore(
-        vDataFetchTask,
+        vOBDFetchTask,
         "OBD_Fetch",
+        10000,
+        NULL,
+        1, // Priorità Bassa
+        NULL,
+        0  // Core 0 (I/O e rete)
+    );
+
+    xTaskCreatePinnedToCore(
+        vSENSFetchTask,
+        "ACC_Fetch",
         10000,
         NULL,
         1, // Priorità Bassa
@@ -169,7 +200,7 @@ void setup() {
     );
 
     changeBitmap();
-    ui_index=2;
+    ui_index=1;
 }
 
 void loop() {
