@@ -190,15 +190,13 @@
         liveData.accelZ = -1.0;
         xSemaphoreGive(xDataMutex);
     }
+    else {
+        ax = liveData.accelX;
+        ay = liveData.accelY;
+        az = liveData.accelZ;
+    }
 
-    // Serial.print(value);
-    // Serial.println(" totale");
-    // Serial.print("ax: ");
-    // Serial.println(ax);
-    // Serial.print("ay: ");
-    // Serial.println(ay);
-    // Serial.print("az: ");
-    // Serial.println(az);
+    
 
 
     //cancello

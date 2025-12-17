@@ -14,21 +14,23 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
-typedef struct {
+typedef struct
+{
     int resbytes;
     void (*interpretation)(long raw_val);
 } OBDCommand_t;
 
-
-typedef struct {
-    const char* bitmap_file;            
-    int decimals;              
-    float min;                       
-    float max; 
+typedef struct
+{
+    const char *bitmap_file;
+    int decimals;
+    float min;
+    float max;
     void (*drawFunction)();
 } DataTypes_t;
 
-typedef struct{
+typedef struct
+{
     float speed;
     float rpm;
     float boost;
@@ -42,12 +44,12 @@ typedef struct{
     float steerAngle;
     float brakePressure;
 
-    float fuelConsumption; 
-    float engineLoad; 
-    int gearSuggestion; 
+    float fuelConsumption;
+    float engineLoad;
+    int gearSuggestion;
 
-    int extimatedRange; 
-    int EcoScore; 
+    int extimatedRange;
+    int EcoScore;
 
     // Temperature/Humidity sensor data
     float InternalTemp;
@@ -62,6 +64,9 @@ typedef struct{
     float gyroY;
     float gyroZ;
 
+    float roll;
+    float pitch;
+
 } DataCollector_t;
 
 extern void rpm(long raw_val);
@@ -69,7 +74,6 @@ extern void boost(long raw_val);
 extern const DataTypes_t OBDScreens[];
 extern std::map<std::string, OBDCommand_t> obdCommandMap;
 extern const int TOTAL_BITMAPS;
-
 
 // semafori vari
 extern SemaphoreHandle_t xSerialMutex; // non so se tenerlo
@@ -79,7 +83,7 @@ extern volatile int ui_color;
 extern volatile int ui_index;
 
 extern SemaphoreHandle_t xReconnMutex;
-extern volatile bool is_reconnect_needed; 
+extern volatile bool is_reconnect_needed;
 
 // queue dati
 extern SemaphoreHandle_t xDataMutex;
@@ -90,8 +94,8 @@ extern SemaphoreHandle_t xBLEMutex;
 extern volatile float zero_x, zero_y, zero_z;
 
 // prototipi delle funzioni
-extern void saveState(const char* state, int val);
-extern int loadState(const char* state);
+extern void saveState(const char *state, int val);
+extern int loadState(const char *state);
 extern void setupWifi();
 extern void setupBLE();
 extern void setupScreen();
@@ -101,11 +105,10 @@ extern void drawAcceleration();
 extern void drawScreen();
 extern void checkWifiStatus();
 extern int checkConnection();
-extern int sendOBDCommand(const char* pid);
+extern int sendOBDCommand(const char *pid);
 extern int readTemperature();
 extern int readHumidity();
-extern int readAcceleration();
-extern int readIncline();
+extern void readIMU();
 extern void InitSensors();
 
 // task
