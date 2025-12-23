@@ -14,14 +14,12 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
-typedef struct
-{
+typedef struct{
     int resbytes;
     void (*interpretation)(long raw_val);
 } OBDCommand_t;
 
-typedef struct
-{
+typedef struct{
     const char *bitmap_file;
     int decimals;
     float min;
@@ -29,8 +27,7 @@ typedef struct
     void (*drawFunction)();
 } DataTypes_t;
 
-typedef struct
-{
+typedef struct{
     float speed;
     float rpm;
     float boost;
@@ -71,8 +68,9 @@ typedef struct
 
 extern void rpm(long raw_val);
 extern void boost(long raw_val);
-extern const DataTypes_t OBDScreens[];
+extern DataTypes_t OBDScreens[];
 extern std::map<std::string, OBDCommand_t> obdCommandMap;
+extern std::map<int, char*> errorMap;
 extern const int TOTAL_BITMAPS;
 
 // semafori vari
@@ -81,9 +79,12 @@ extern SemaphoreHandle_t xSerialMutex; // non so se tenerlo
 extern SemaphoreHandle_t xUIMutex;
 extern volatile int ui_color;
 extern volatile int ui_index;
+extern volatile bool ui_update;
 
-extern SemaphoreHandle_t xReconnMutex;
-extern volatile bool is_reconnect_needed;
+extern int err;
+
+extern bool is_wifi_connected;
+extern bool is_tcp_connected;
 
 // queue dati
 extern SemaphoreHandle_t xDataMutex;
@@ -101,6 +102,8 @@ extern void setupBLE();
 extern void setupScreen();
 extern void changeBitmap();
 extern void drawBoost();
+extern void drawRPM();
+extern void drawInit();
 extern void drawAcceleration();
 extern void drawScreen();
 extern void checkWifiStatus();
@@ -110,7 +113,8 @@ extern int readTemperature();
 extern int readHumidity();
 extern void readIMU();
 extern void InitSensors();
-
+extern void setError(int errCode);
+extern int getError();
 // task
 extern void vUITask(void *pvParameters);
 extern void vDataFetchTask(void *pvParameters);
