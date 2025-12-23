@@ -9,7 +9,7 @@ bool is_wifi_connected = false;
 bool is_tcp_connected = false; 
 
 void setupWifi() {
-    Serial.begin(115200); 
+ 
     Serial.println("🔌 Connessione alla Vgate Wi-Fi...");
     WiFi.begin(ssid, password);
 }
@@ -21,12 +21,13 @@ void checkWifiStatus() {
             is_wifi_connected = true;
         }
     } else {
-        if (is_wifi_connected) {
+        if (is_tcp_connected) {
             Serial.println("❌ Wi-Fi Disconnesso.");
             is_wifi_connected = false;
             is_tcp_connected = false; 
         }
     }
+    
 }
 
 // questa funzione e' bloccante
@@ -34,9 +35,13 @@ void checkWifiStatus() {
 int checkConnection() {
     if (!is_wifi_connected) {
         is_tcp_connected = false;
+        //prevents half-open connections
+        client.stop();
+        Serial.println("Wifi non connesso.");
         return -1;
     }
     
+    // might need to work on this, half connection
     if (client.connected()) {
         is_tcp_connected = true;
         return 0; 
@@ -52,12 +57,18 @@ int checkConnection() {
     if (client.connect("192.168.0.10", 35000)) {
         Serial.println("✅ Connesso via TCP. Inizializzo OBD.");
         is_tcp_connected = true;
-        
-        // Inizializzazione dongle OBD
+
         client.print("ATZ\r");
+        delay(1000);
+
+        while(client.available()) client.read();
+        
         client.print("ATE0\r");
+        delay(50);
         client.print("ATL0\r");
+        delay(50);
         client.print("ATSP0\r");
+        delay(50);
         return 0;
     }
 
@@ -76,7 +87,10 @@ int sendOBDCommand(const char* pid){
     }
 
     // se non sono connesso allora returno -1
-    if (!is_tcp_connected) return -1; 
+    if (!is_tcp_connected) {
+        // Serial.println("TCP NON CONNESSO.");
+        return -1;
+    }
     
     int resbytes = obdCommandMap[pid].resbytes;
     if (resbytes > 4 || resbytes < 1) return -1;

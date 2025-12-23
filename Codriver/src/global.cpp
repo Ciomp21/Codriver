@@ -9,7 +9,7 @@ SemaphoreHandle_t xDataMutex = NULL;
 QueueHandle_t xObdDataQueue = NULL; 
 SemaphoreHandle_t xReconnMutex = NULL;
 DataCollector_t liveData = {-1};
-volatile bool is_reconnect_needed = false;
+
 
 SemaphoreHandle_t xBLEMutex = NULL;
 volatile float zero_x = 0.0;
@@ -17,7 +17,10 @@ volatile float zero_y = 0.0;
 volatile float zero_z = 0.0;
 
 volatile int ui_color = 0xFFFFFF; 
-volatile int ui_index = 1;
+volatile int ui_index = 0;
+volatile bool ui_update = false;
+
+int err = 0;
 
 Preferences preferences;
 
@@ -28,18 +31,23 @@ std::map<std::string, OBDCommand_t> obdCommandMap = {
   // Add more PID-command mappings here
 };
 
+std::map<int, char*> errorMap = {
+    {1, "Tentativo di riconnessione OBD..."},
+};
+
 // here you can add more screens
-const DataTypes_t OBDScreens[] = {
+DataTypes_t OBDScreens[] = {
     {
-        .bitmap_file = "/boost.bin",
+        .bitmap_file = "/init.bin",
         .decimals = 0,
-        .min = 0.0,
-        .max = 5400.0,
-    },
+        .min = -1.0,
+        .max = -1.0,
+        .drawFunction = drawInit
+    },  
     {
         .bitmap_file = "/boost.bin",
         .decimals = 2,
-        .min = -0.5,
+        .min = -0.3,
         .max = 2.0,
         .drawFunction = drawBoost,
     },
@@ -49,7 +57,7 @@ const DataTypes_t OBDScreens[] = {
         .min = 0,
         .max = 2.0,
         .drawFunction = drawAcceleration,
-    }
+    },
 };
 
 const int TOTAL_BITMAPS = sizeof(OBDScreens) / sizeof(OBDScreens[0]);
@@ -67,6 +75,26 @@ int loadState(const char* state) {
     
     if (strcmp(state, "color") == 0 && ret == 0) {
         return 0xFFFFFF;
+    }
+    return ret;
+}
+
+void setError(int errCode){
+    const char * msg = errorMap[errCode];
+    // Serial.printf("Errore inviato: %s\n", msg);
+    if(xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10))==pdTRUE){
+        ui_update = true;
+        if ( err == 0 ) err = errCode;
+        xSemaphoreGive(xUIMutex);
+    }
+    
+}
+
+int getError(){
+    int ret = 0;
+    if(xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10))==pdTRUE){
+        ret = err;
+        xSemaphoreGive(xUIMutex);
     }
     return ret;
 }

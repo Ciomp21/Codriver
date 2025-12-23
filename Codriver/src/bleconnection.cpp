@@ -17,7 +17,7 @@ class ConfigCallback : public BLECharacteristicCallbacks {
     static char jsonBuffer[128];
     uint8_t* data = pCharacteristic->getData();
     size_t length = pCharacteristic->getValue().length();
-    
+    Serial.println("messaggio valido");
     //copio localmente il buffer della risposta
     if (length > 0 && length < 128) {
         memcpy(jsonBuffer, data, length);
@@ -29,6 +29,7 @@ class ConfigCallback : public BLECharacteristicCallbacks {
 
 void setupBLE() {  
     BLEDevice::init("Codriver");
+    BLEDevice::setMTU(512);
     BLEServer *server = BLEDevice::createServer();
     BLEService *service = server->createService(SERVICE_UUID);
     BLECharacteristic *characteristic = service->createCharacteristic(
@@ -57,22 +58,31 @@ void parseJson(const char* jsonStr) {
   int g = doc["g"] | 0;
   int b = doc["b"] | 0;
   uint16_t new_color = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-  int index = doc["bm"] | 0; 
-  
-  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-      ui_color = new_color;
-      saveState("color", ui_color);
-      saveState("screen", ui_index);
+  int index = doc["index"] | 0;
 
-      if (ui_index < 0 || ui_index >= TOTAL_BITMAPS) {
+  int min = doc["min"] | 0;
+  int max = doc["max"] | 0;
+
+  Serial.printf("Colore r: %d, g: %d, b: %d", r,g,b);
+  Serial.printf("min: %d, max: %d\n", min, max);
+  Serial.printf("index: %d\n", index);
+   
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+
+    if (ui_index < 0 || ui_index >= TOTAL_BITMAPS) {
         Serial.printf("ERRORE: Indice bitmap non valido: %d\n", index);
+        xSemaphoreGive(xUIMutex);
         return;
-      } else {
-        ui_index = index; 
-      }
-      
-      xSemaphoreGive(xUIMutex); 
-      changeBitmap();
+    }
+
+    Serial.println("Cambio UI");
+
+    ui_color = new_color;
+    ui_index = index;
+    ui_update = true;
+    OBDScreens[ui_index].max = max;
+    OBDScreens[ui_index].min = min;
+    xSemaphoreGive(xUIMutex);
   } else {
       Serial.println("❌ BLE: Mutex Timeout. Impossibile aggiornare UI.");
   }
