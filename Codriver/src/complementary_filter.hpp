@@ -23,7 +23,7 @@ public:
     float gy_offset = 0.0f;
     float gz_offset = 0.0f;
 
-    float alpha = 0.98f; // gyro weight
+    float alpha = 0.96f; // Dai più peso all'accelerometro
 
     void calibrate(int samples = 1000)
     {
@@ -33,7 +33,11 @@ public:
         for (int i = 0; i < samples; i++)
         {
             uint8_t buffer[14];
-            i2cReading(0x3B, 14, buffer);
+            if (i2cReading(0x3B, 14, buffer) != 0)
+            {
+                Serial.println("⚠️  Skipping IMU reading due to I2C error");
+                return; // Skip this reading if I2C failed
+            }
 
             int16_t ax = (buffer[0] << 8) | buffer[1];
             int16_t ay = (buffer[2] << 8) | buffer[3];
@@ -66,11 +70,9 @@ public:
     // Update the filter with new accelerometer and gyroscope data
     // ax, ay, az are in m/s²
     // gx, gy are in rad/s
-    void update(float ax, float ay, float az,
-                float gx, float gy)
+    void update(float ax, float ay, float az, float gx, float gy)
     {
-
-        // Accelerometer angles
+        // Accelerometer angles (reference assoluta rispetto alla gravità)
         float roll_acc = atan2(ay, az);
         float pitch_acc = atan2(-ax, sqrt(ay * ay + az * az));
 
@@ -79,29 +81,65 @@ public:
         float dt = (now - last_update_time) * 1e-6f;
         last_update_time = now;
 
+        // Prima volta? Inizializza con accelerometro
+        if (dt > 1.0f || dt <= 0.0f)
+        {
+            roll = roll_acc;
+            pitch = pitch_acc;
+            last_update_time = now;
+            roll_deg = roll * 57.2958f;
+            pitch_deg = pitch * 57.2958f;
+            return;
+        }
+
         // Gyro integration
         roll += gx * dt;
         pitch += gy * dt;
 
+        // 🚗 ADAPTIVE ALPHA per automotive
+        // Rileva accelerazioni dinamiche del veicolo (accelerazione/frenata/curva)
+        float accel_magnitude = sqrt(ax * ax + ay * ay + az * az);
+        float dynamic_accel = fabs(accel_magnitude - 9.81f);
+
+        // Rileva rotazioni veloci
+        float gyro_activity = fabs(gx) + fabs(gy);
+
+        float adaptive_alpha;
+
+        if (dynamic_accel > 3.0f || gyro_activity > 0.2f)
+        {
+            // Movimento dinamico forte → più fiducia al giroscopio
+            adaptive_alpha = 0.98f;
+        }
+        else if (dynamic_accel > 1.0f)
+        {
+            // Movimento moderato → bilanciato
+            adaptive_alpha = 0.96f;
+        }
+        else
+        {
+            // Quasi fermo → più fiducia all'accelerometro per correggere drift
+            adaptive_alpha = 0.92f;
+        }
+
         // Complementary fusion
-        roll = alpha * roll + (1.0f - alpha) * roll_acc;
-        pitch = alpha * pitch + (1.0f - alpha) * pitch_acc;
+        roll = adaptive_alpha * roll + (1.0f - adaptive_alpha) * roll_acc;
+        pitch = adaptive_alpha * pitch + (1.0f - adaptive_alpha) * pitch_acc;
 
         // Update degrees
-        roll_deg = roll * (180.0f / 3.14159f);
-        pitch_deg = pitch * (180.0f / 3.14159f);
+        roll_deg = roll * 57.2958f;
+        pitch_deg = pitch * 57.2958f;
     }
 
     // Remove gravity component from accelerometer readings
     // ax, ay, az are in m/s²
     // Outputs passed as memory locations in ax_lin, ay_lin, az_lin are linear accelerations
-    void removeGravity(float ax, float ay, float az,
-                       float &ax_lin, float &ay_lin, float &az_lin)
+    void removeGravity(float &ax, float &ay, float &az)
     {
         const float g = 9.81f;
 
-        ax_lin = ax - g * sin(pitch);
-        ay_lin = ay + g * sin(roll) * cos(pitch);
-        az_lin = az - g * cos(roll) * cos(pitch);
+        ax = ax - g * sin(pitch);
+        ay = ay + g * sin(roll) * cos(pitch);
+        az = az - g * cos(roll) * cos(pitch);
     }
 };

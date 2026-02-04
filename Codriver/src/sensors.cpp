@@ -19,15 +19,26 @@ void i2c_communicate(uint8_t reg, uint8_t data)
     Wire.endTransmission();
 }
 
-void i2cReading(uint8_t reg, uint8_t len, uint8_t *buffer)
+// Returns 0 on success, -1 on I2C error
+int i2cReading(uint8_t reg, uint8_t len, uint8_t *buffer)
 {
     Wire.beginTransmission(MPU_ADDR);
-
     Wire.write(reg);
     Wire.endTransmission(false);
-    Wire.requestFrom((uint8_t)MPU_ADDR, (uint8_t)len, true);
+
+    // requestFrom returns the number of bytes received, or 0 on error
+    size_t bytesRead = Wire.requestFrom((uint8_t)MPU_ADDR, (uint8_t)len, true);
+
+    if (bytesRead != len)
+    {
+        Serial.printf("⚠️  I2C Error: Expected %d bytes, got %d bytes\n", len, bytesRead);
+        return -1; // I2C error occurred
+    }
+
     for (int i = 0; i < len; i++)
         buffer[i] = Wire.read();
+
+    return 0; // Success
 }
 
 void InitTempHumiditySensor()
@@ -79,13 +90,17 @@ void InitIMUSensor()
     // 3. WAKE UP e configurazione (SOLO SE il sensore è stato riconosciuto)
     i2c_communicate(0x6B, 0x00);
 
-    i2c_communicate(0x19, 0x07); // 1 kHz / (1+7) = 125 Hz
+    // ✅ SAMPLE RATE: 100 Hz (ottimo compromesso auto)
+    i2c_communicate(0x19, 0x09); // 1000Hz / (1+9) = 100 Hz
 
-    i2c_communicate(0x1A, 0x03); // DLPF = 3 → BW=44 Hz (stabile per auto)
+    // ✅ DLPF (Low Pass Filter): Bandwidth 20 Hz
+    i2c_communicate(0x1A, 0x04); // Filtra vibrazioni motore/strada
 
-    i2c_communicate(0x1B, 0x08); // Gyro full scale ±500°/s
+    // ✅ GYRO: ±250°/s (sufficiente per auto normale)
+    i2c_communicate(0x1B, 0x00); // Se fai track-day → 0x08 (±500°/s)
 
-    i2c_communicate(0x1C, 0x08); // Accel full scale ±4g
+    // ✅ ACCEL: ±8g (copre frenate/accelerazioni brusche)
+    i2c_communicate(0x1C, 0x10); // ±8g = 4096 LSB/g
 
     delay(100);
 
@@ -100,7 +115,7 @@ void InitIMUSensor()
 void InitSensors()
 {
     // Initialize Temperature/Humidity sensor
-    // InitTempHumiditySensor();
+    InitTempHumiditySensor();
 
     // Initialize IMU sensor here
     InitIMUSensor();
@@ -112,10 +127,9 @@ void InitSensors()
 // Read data from sensors and update LiveData structure
 // ==================================================================
 
-int16_t ax, ay, az; // Accelerometer raw values
-int16_t gx, gy, gz; // Gyroscope raw values
-
 #define DEG_TO_RAD 0.01745329252f
+
+unsigned long lastIMUPrintTime = 0;
 
 // This function reads temperature from DHT11 sensor
 // SHOULD be called with some delay to get accurate readings
@@ -138,7 +152,15 @@ int readHumidity()
 void readIMU()
 {
     uint8_t buffer[14];
-    i2cReading(0x3B, 14, buffer);
+    int16_t ax, ay, az; // Accelerometer raw values
+    int16_t gx, gy, gz; // Gyroscope raw values
+
+    // Check if I2C reading was successful
+    if (i2cReading(0x3B, 14, buffer) != 0)
+    {
+        Serial.println("⚠️  Skipping IMU reading due to I2C error");
+        return; // Skip this reading if I2C failed
+    }
 
     ax = (buffer[0] << 8) | buffer[1];
     ay = (buffer[2] << 8) | buffer[3];
@@ -149,42 +171,46 @@ void readIMU()
     gz = (buffer[12] << 8) | buffer[13];
 
     // Convert raw values to 'g'
-    float accelX = ((float)ax - filter.ax_offset) / 8192.0f;
-    float accelY = ((float)ay - filter.ay_offset) / 8192.0f;
-    float accelZ = ((float)az - filter.az_offset) / 8192.0f;
+    float accelX = ((float)ax - filter.ax_offset) / 4096.0f;
+    float accelY = ((float)ay - filter.ay_offset) / 4096.0f;
+    float accelZ = ((float)az - filter.az_offset) / 4096.0f;
 
     // Convert raw values to 'rad/s'
-    float gyroX = ((float)gx - filter.gx_offset) / 65.5f * DEG_TO_RAD;
-    float gyroY = ((float)gy - filter.gy_offset) / 65.5f * DEG_TO_RAD;
-    float gyroZ = ((float)gz - filter.gz_offset) / 65.5f * DEG_TO_RAD;
+    float gyroX = ((float)gx - filter.gx_offset) / 131.0f * DEG_TO_RAD;
+    float gyroY = ((float)gy - filter.gy_offset) / 131.0f * DEG_TO_RAD;
+    float gyroZ = ((float)gz - filter.gz_offset) / 131.0f * DEG_TO_RAD;
 
     // Need to update the Roll and Pitch values in filter
+    // Convert accelerometer from 'g' to 'm/s²'
     filter.update(accelX * 9.81f, accelY * 9.81f, accelZ * 9.81f, gyroX, gyroY);
 
+    unsigned long currentTime = micros();
+
     // Remove gravity component
-    float ax_lin, ay_lin, az_lin;
-    filter.removeGravity(accelX, accelY, accelZ,
-                         ax_lin, ay_lin, az_lin);
+    filter.removeGravity(accelX, accelY, accelZ);
 
-    accelX = truncf(ax_lin * 10) / 10.0f;
-    accelY = truncf(ay_lin * 10) / 10.0f;
-    accelZ = truncf(az_lin * 10) / 10.0f;
-
-    if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    if (currentTime - lastIMUPrintTime >= 1000)
     {
-        liveData.accelX = accelX;
-        liveData.accelY = accelY;
-        liveData.accelZ = accelZ;
-
-        liveData.gyroX = gyroX;
-        liveData.gyroY = gyroY;
-        liveData.gyroZ = gyroZ;
-
-        liveData.roll = filter.roll_deg;
-        liveData.pitch = filter.pitch_deg;
-
-        xSemaphoreGive(xDataMutex);
+        lastIMUPrintTime = currentTime;
+        Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
+        Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
     }
+
+    // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    // {
+    //     liveData.accelX = accelX;
+    //     liveData.accelY = accelY;
+    //     liveData.accelZ = accelZ;
+
+    //     liveData.gyroX = gyroX;
+    //     liveData.gyroY = gyroY;
+    //     liveData.gyroZ = gyroZ;
+
+    //     liveData.roll = filter.roll_deg;
+    //     liveData.pitch = filter.pitch_deg;
+
+    //     xSemaphoreGive(xDataMutex);
+    // }
 
     return;
 }

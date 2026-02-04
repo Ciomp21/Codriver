@@ -24,5 +24,5 @@ int readHumidity();
 int readAcceleration();
 int readIncline();
 void InitSensors();
-void i2cReading(uint8_t reg, uint8_t len, uint8_t *buffer);
+int i2cReading(uint8_t reg, uint8_t len, uint8_t *buffer);
 void i2ccommunicate(uint8_t reg, uint8_t data);
