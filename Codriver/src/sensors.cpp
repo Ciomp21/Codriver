@@ -6,9 +6,6 @@ DHT dht(DHTPIN, DHTTYPE);
 
 ComplementaryFilter filter;
 
-#define I2C_SDA_PIN 4 // Pin per i dati I2C
-#define I2C_SCL_PIN 5 // Pin per il clock I2C
-
 void i2c_communicate(uint8_t reg, uint8_t data)
 {
     // Starts I2C transmission to the MPU6050
@@ -102,7 +99,7 @@ void InitIMUSensor()
     // ✅ ACCEL: ±8g (copre frenate/accelerazioni brusche)
     i2c_communicate(0x1C, 0x10); // ±8g = 4096 LSB/g
 
-    delay(100);
+    delay(1000);
 
     // 4. IMU CALIBRATION
     Serial.println("Calibrazione IMU in corso. Tenere fermo il dispositivo...");
@@ -184,15 +181,15 @@ void readIMU()
     // Convert accelerometer from 'g' to 'm/s²'
     filter.update(accelX * 9.81f, accelY * 9.81f, accelZ * 9.81f, gyroX, gyroY);
 
+    // Remove gravity component
+    // filter.removeGravity(accelX, accelY, accelZ);
+
     unsigned long currentTime = micros();
 
-    // Remove gravity component
-    filter.removeGravity(accelX, accelY, accelZ);
-
-    if (currentTime - lastIMUPrintTime >= 1000)
+    if (currentTime - lastIMUPrintTime >= 3000)
     {
         lastIMUPrintTime = currentTime;
-        Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
+        // Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
         Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
     }
 

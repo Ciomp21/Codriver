@@ -136,10 +136,18 @@ public:
     // Outputs passed as memory locations in ax_lin, ay_lin, az_lin are linear accelerations
     void removeGravity(float &ax, float &ay, float &az)
     {
-        const float g = 9.81f;
+        const float g = 9.81f; // Assuming angles in radians
 
-        ax = ax - g * sin(pitch);
-        ay = ay + g * sin(roll) * cos(pitch);
-        az = az - g * cos(roll) * cos(pitch);
+        // Gravity components in body frame
+        float gx = g * sin(pitch);
+        float gy = -g * sin(roll) * cos(pitch);
+        float gz = g * cos(roll) * cos(pitch);
+
+        // Remove gravity to get true linear acceleration
+        ax = ax - gx;
+        ay = ay - gy;
+        az = az - gz;
+
+        printf("Gravity -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", gx, gy, gz);
     }
 };

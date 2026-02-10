@@ -133,7 +133,7 @@ void vUITask(void *pvParameters)
 
     while (1)
     {
-        drawScreen();
+        //drawScreen();
 
         vTaskDelay(pdMS_TO_TICKS(10));
     }
