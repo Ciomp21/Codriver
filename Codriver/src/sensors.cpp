@@ -3,8 +3,11 @@
 #include "complementary_filter.hpp"
 
 DHT dht(DHTPIN, DHTTYPE);
-
 ComplementaryFilter filter;
+static unsigned long lastDhtReadMs = 0;
+static float lastTempC = NAN;
+static float lastHumidity = NAN;
+static const unsigned long kDhtMinIntervalMs = 2000;
 
 void i2c_communicate(uint8_t reg, uint8_t data)
 {
@@ -28,7 +31,7 @@ int i2cReading(uint8_t reg, uint8_t len, uint8_t *buffer)
 
     if (bytesRead != len)
     {
-        Serial.printf("⚠️  I2C Error: Expected %d bytes, got %d bytes\n", len, bytesRead);
+        Serial.printf("I2C Error: Expected %d bytes, got %d bytes\n", len, bytesRead);
         return -1; // I2C error occurred
     }
 
@@ -46,7 +49,7 @@ void InitTempHumiditySensor()
     Serial.println(F("DHT11 sensor test"));
 
     Serial.print(F("Temperature: "));
-    Serial.println(dht.readTemperature());
+    Serial.println(dht.readTemperature(false, true));
 
     // Print humidity as proof.
     Serial.print(F("Humidity: "));
@@ -133,13 +136,46 @@ unsigned long lastIMUPrintTime = 0;
 
 int readTemperature()
 {
-    liveData.InternalTemp = dht.readTemperature();
+    unsigned long now = millis();
+    if (now - lastDhtReadMs < kDhtMinIntervalMs && !isnan(lastTempC))
+    {
+        liveData.InternalTemp = lastTempC;
+        return 0;
+    }
+
+    float temp = dht.readTemperature();
+    if (isnan(temp))
+    {
+        Serial.println("⚠️  Failed to read from DHT sensor!");
+        return -1;
+    }
+
+    lastDhtReadMs = now;
+    lastTempC = temp;
+    liveData.InternalTemp = temp;
+    Serial.println("Temperature: " + String(temp) + "°C");
     return 0;
 }
 
 int readHumidity()
 {
-    liveData.humidity = dht.readHumidity();
+    unsigned long now = millis();
+    if (now - lastDhtReadMs < kDhtMinIntervalMs && !isnan(lastHumidity))
+    {
+        liveData.humidity = lastHumidity;
+        return 0;
+    }
+
+    float humidity = dht.readHumidity();
+    if (isnan(humidity))
+    {
+        Serial.println("⚠️  Failed to read humidity from DHT sensor!");
+        return -1;
+    }
+
+    lastDhtReadMs = now;
+    lastHumidity = humidity;
+    liveData.humidity = humidity;
     return 0;
 }
 
@@ -155,7 +191,7 @@ void readIMU()
     // Check if I2C reading was successful
     if (i2cReading(0x3B, 14, buffer) != 0)
     {
-        Serial.println("⚠️  Skipping IMU reading due to I2C error");
+        // Serial.println("⚠️  Skipping IMU reading due to I2C error");
         return; // Skip this reading if I2C failed
     }
 
@@ -190,24 +226,20 @@ void readIMU()
     {
         lastIMUPrintTime = currentTime;
         // Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
-        Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
+        // Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
     }
 
-    // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
-    // {
-    //     liveData.accelX = accelX;
-    //     liveData.accelY = accelY;
-    //     liveData.accelZ = accelZ;
+    if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        liveData.accelX = accelX;
+        liveData.accelY = accelY;
+        liveData.accelZ = accelZ;
 
-    //     liveData.gyroX = gyroX;
-    //     liveData.gyroY = gyroY;
-    //     liveData.gyroZ = gyroZ;
+        liveData.roll = filter.roll_deg;
+        liveData.pitch = filter.pitch_deg;
 
-    //     liveData.roll = filter.roll_deg;
-    //     liveData.pitch = filter.pitch_deg;
-
-    //     xSemaphoreGive(xDataMutex);
-    // }
+        xSemaphoreGive(xDataMutex);
+    }
 
     return;
 }

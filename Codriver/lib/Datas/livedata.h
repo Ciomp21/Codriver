@@ -18,15 +18,14 @@ struct LiveData
 
     // Calculated data
     float fuelConsumption; // in L/100km
-    float engineLoad; // in percentage
-    int gearSuggestion; // suggested gear for optimal fuel efficiency
+    float engineLoad;      // in percentage
+    int gearSuggestion;    // suggested gear for optimal fuel efficiency
 
     int extimatedRange; // in km
-    int EcoScore; // overall eco score
+    int EcoScore;       // overall eco score
 
     int clockTime; // in HHMM format
-    int date; // in DDMMYY format
-
+    int date;      // in DDMMYY format
 
     // Temperature/Humidity sensor data
     float InternalTemp;
@@ -59,6 +58,4 @@ struct LiveData
     float brakingForce;
     float corneringForce;
     float accelerationForce;
-
-
 };

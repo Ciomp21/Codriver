@@ -4,7 +4,7 @@
 #include "Wire.h"
 
 #define DHTTYPE DHT11 /**< DHT TYPE 11 */
-#define DHTPIN 10     // GPIO pin where the DHT11 is connected
+#define DHTPIN 2      // GPIO pin where the DHT11 is connected
 #define MPU_ADDR 0x68 // I2C address of the MPU6050
 #define I2C_SDA_PIN 4 // Pin per i dati I2C
 #define I2C_SCL_PIN 5 // Pin per il clock I2C
@@ -19,7 +19,7 @@
 // | `ACCEL_CONFIG` | `0x1C`    | Accel full scale               |
 // | `ACCEL_XOUT_H` | `0x3B`    | Inizio burst read dati sensori |
 //  Indirizzo I²C del sensore: 0x68
-// Physical connection: SDA -> GPIO21, SCL -> GPIO22
+// Physical connection: SDA -> GPIO4, SCL -> GPIO5
 
 int readTemperature();
 int readHumidity();

@@ -60,7 +60,7 @@ public:
 
         ax_offset = ax_sum / samples;
         ay_offset = ay_sum / samples;
-        az_offset = az_sum / samples - 8192.0f; // assuming static position, so Z should read 1g
+        az_offset = az_sum / samples; 
 
         gx_offset = gx_sum / samples;
         gy_offset = gy_sum / samples;
@@ -96,7 +96,6 @@ public:
         roll += gx * dt;
         pitch += gy * dt;
 
-        // 🚗 ADAPTIVE ALPHA per automotive
         // Rileva accelerazioni dinamiche del veicolo (accelerazione/frenata/curva)
         float accel_magnitude = sqrt(ax * ax + ay * ay + az * az);
         float dynamic_accel = fabs(accel_magnitude - 9.81f);
@@ -133,7 +132,6 @@ public:
 
     // Remove gravity component from accelerometer readings
     // ax, ay, az are in m/s²
-    // Outputs passed as memory locations in ax_lin, ay_lin, az_lin are linear accelerations
     void removeGravity(float &ax, float &ay, float &az)
     {
         const float g = 9.81f; // Assuming angles in radians

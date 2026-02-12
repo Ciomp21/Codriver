@@ -95,7 +95,7 @@ void vSENSFetchTask(void *pvParameters)
 
         // readTemperature();
         // readHumidity();
-        readIMU();
+        // readIMU();
 
         vTaskDelay(pdMS_TO_TICKS(150));
     }
@@ -128,14 +128,16 @@ void vSaveTask(void *pvParameters)
 
 void vUITask(void *pvParameters)
 {
-    float received_val;
+
     setupScreen();
+
+    delay(1000); // wait for the first data to arrive
 
     while (1)
     {
-        //drawScreen();
+        drawScreen();
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(16)); // roughly 60 fps
     }
 }
 
@@ -160,34 +162,35 @@ void setup()
     xBLEMutex = xSemaphoreCreateMutex();
     xDataMutex = xSemaphoreCreateMutex();
 
-    xTaskCreatePinnedToCore(
-        vOBDFetchTask,
-        "OBD_Fetch",
-        16000,
-        NULL,
-        1, // Priorità Bassa
-        NULL,
-        0 // Core 0 (I/O e rete)
-    );
+    // xTaskCreatePinnedToCore(
+    //     vOBDFetchTask,
+    //     "OBD_Fetch",
+    //     16000,
+    //     NULL,
+    //     1, // Priorità Bassa
+    //     NULL,
+    //     0 // Core 0 (I/O e rete)
+    // );
 
-    xTaskCreatePinnedToCore(
-        vSaveTask,
-        "Save_data",
-        10000,
-        NULL,
-        1, // Priorità Bassa
-        NULL,
-        0 // Core 0 (I/O e rete)
-    );
-    xTaskCreatePinnedToCore(
-        vSENSFetchTask,
-        "ACC_Fetch",
-        10000,
-        NULL,
-        1, // Priorità Bassa
-        NULL,
-        0 // Core 0 (I/O e rete)
-    );
+    // xTaskCreatePinnedToCore(
+    //     vSaveTask,
+    //     "Save_data",
+    //     10000,
+    //     NULL,
+    //     1, // Priorità Bassa
+    //     NULL,
+    //     0 // Core 0 (I/O e rete)
+    // );
+
+    // xTaskCreatePinnedToCore(
+    //     vSENSFetchTask,
+    //     "ACC_Fetch",
+    //     10000,
+    //     NULL,
+    //     1, // Priorità Bassa
+    //     NULL,
+    //     0 // Core 0 (I/O e rete)
+    // );
 
     xTaskCreatePinnedToCore(
         vUITask,
@@ -199,15 +202,15 @@ void setup()
         1 // Core 1 (Dedicato all'UI)
     );
 
-    xTaskCreatePinnedToCore(
-        vBLETask,
-        "BLE_Handler",
-        16000,
-        NULL,
-        1, // Priorità Media
-        NULL,
-        0 // Core 0
-    );
+    // xTaskCreatePinnedToCore(
+    //     vBLETask,
+    //     "BLE_Handler",
+    //     16000,
+    //     NULL,
+    //     1, // Priorità Media
+    //     NULL,
+    //     0 // Core 0
+    // );
 }
 
 void loop()

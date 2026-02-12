@@ -14,6 +14,8 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
+#define DEG2RAD 0.0174532925
+
 typedef struct
 {
     int resbytes;
@@ -106,6 +108,8 @@ extern void saveState(const char *state, int val);
 extern int loadState(const char *state);
 extern void setupWifi();
 extern void setupBLE();
+
+// funzioni per disegnare le schermate
 extern void setupScreen();
 extern void changeBitmap();
 extern void drawBoost();
@@ -113,6 +117,9 @@ extern void drawRPM();
 extern void drawInit();
 extern void drawAcceleration();
 extern void drawScreen();
+extern void drawPitch();
+extern void drawCarFront();
+
 extern void checkWifiStatus();
 extern int checkConnection();
 extern int sendOBDCommand(const char *pid);
