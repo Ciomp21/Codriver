@@ -4,19 +4,10 @@
 // questi servono per agire sul filesystem
 #include <LittleFS.h>
 #include <FS.h>
+#include <screen.hpp>
 
 #include "global.hpp"
 
-// pin dello schermetto
-#define TFT_MOSI 11
-#define TFT_SCLK 12
-#define TFT_CS 10
-#define TFT_DC 6
-#define TFT_RST 7
-// variabili linea
-#define CENTER_X 120
-#define CENTER_Y 120
-#define LENGTH 70
 // filesystem
 #define LINE_BUFFER_SIZE (240 * 2)
 
@@ -91,6 +82,59 @@ void setupScreen()
     }
     err = 0;
     xSemaphoreGive(xUIMutex);
+  }
+}
+
+void drawScreen()
+{
+  int current_index;
+  bool update = false;
+
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    current_index = ui_index;
+
+    if (ui_update)
+    {
+      update = true;
+      ui_update = false;
+    }
+    xSemaphoreGive(xUIMutex);
+  }
+  else
+  {
+    current_index = ui_index;
+  }
+
+  DataTypes_t screen = OBDScreens[current_index];
+
+  if (update)
+  {
+    if (getError() != 0)
+    {
+      changeBitmap(0);
+    }
+    else
+    {
+      Serial.printf("Updating UI! index: %d\n", current_index);
+      changeBitmap(current_index);
+      current_min = screen.min;
+      current_max = screen.max;
+
+      // Just for now
+      gfx->fillScreen(BLACK);
+    }
+  }
+
+  if (getError() != 0)
+  {
+    OBDScreens[0].drawFunction();
+    return;
+  }
+
+  if (screen.drawFunction)
+  {
+    screen.drawFunction();
   }
 }
 
@@ -212,239 +256,7 @@ void drawRotatedLine(int cx, int cy, float x1, float y1, float x2, float y2, flo
   gfx->drawLine(rx1, ry1, rx2, ry2, WHITE);
 }
 
-void drawScreen()
-{
-  int current_index;
-  bool update = false;
-
-  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  {
-    current_index = ui_index;
-
-    if (ui_update)
-    {
-      update = true;
-      ui_update = false;
-    }
-    xSemaphoreGive(xUIMutex);
-  }
-  else
-  {
-    current_index = ui_index;
-  }
-
-  DataTypes_t screen = OBDScreens[current_index];
-
-  if (update)
-  {
-    if (getError() != 0)
-    {
-      changeBitmap(0);
-    }
-    else
-    {
-      Serial.printf("Updating UI! index: %d\n", current_index);
-      changeBitmap(current_index);
-      current_min = screen.min;
-      current_max = screen.max;
-    }
-  }
-
-  if (getError() != 0)
-  {
-    OBDScreens[0].drawFunction();
-    return;
-  }
-
-  if (screen.drawFunction)
-  {
-    screen.drawFunction();
-  }
-}
-
-// here u can add new draw functions for the various screens
-
-float boostValues[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.75, 1.7, 1.65, 1.6, 1.55, 1.5, 1.45, 1.4, 1.35, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0};
-int boostIndex = 0;
-
-void drawBoost()
-{
-  float boostValue = boostValues[boostIndex++ % (sizeof(boostValues) / sizeof(boostValues[0]))];
-
-  // float boostValue;
-  // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  // {
-  //   boostValue = liveData.boost;
-  //   // important to set those values to -1 after reading
-  //   // for easy smoothing
-  //   liveData.boost = -1.0;
-  //   xSemaphoreGive(xDataMutex);
-  // }
-  // else
-  // {
-  //   boostValue = liveData.boost;
-  // }
-
-  // Serial.printf("boost: %f, min: %f, max: %f\n", boostValue, current_min, current_max);
-
-  // i get the length of the string
-  int length = snprintf(NULL, 0, "%.*f", decimals, boostValue);
-  int prevlength = snprintf(NULL, 0, "%.*f", decimals, val);
-
-  drawGauge(boostValue);
-
-  if (boostValue == -1.0)
-  {
-    return;
-  }
-
-  int startX = 120 - (length * 18) / 2;
-  int prevStartX = 120 - (prevlength * 18) / 2;
-  // da vedere questo
-  if (abs(boostValue - val) > 0.001)
-  {
-    // cancello
-    gfx->setTextSize(3);
-    gfx->setCursor(prevStartX, 150);
-    gfx->setTextColor(BLACK);
-    gfx->print(val, 2);
-  }
-
-  val = boostValue;
-
-  gfx->setTextSize(3);
-  gfx->setCursor(startX, 150);
-  gfx->setTextColor(WHITE);
-  gfx->print(boostValue, 2);
-}
-
-void drawRPM()
-{
-  float value;
-  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  {
-    value = liveData.rpm;
-    // important to set those values to -1 after reading
-    // for easy smoothing
-    liveData.rpm = -1.0;
-    xSemaphoreGive(xDataMutex);
-  }
-  else
-  {
-    value = liveData.rpm;
-  }
-
-  // Serial.print("rpm: ");
-  // Serial.println(value);
-
-  int length = snprintf(NULL, 0, "%.*f", decimals, value);
-
-  drawGauge(value);
-
-  int startX = 120 - (length * 18) / 2;
-  if (value == -1)
-  {
-    return;
-  }
-  // da vedere questo
-  if (abs(value - val) > 0.001)
-  {
-    // cancello
-    gfx->setTextSize(3);
-    gfx->setCursor(startX, 150);
-    gfx->setTextColor(BLACK);
-    gfx->print(startX, decimals);
-  }
-
-  val = value;
-
-  gfx->setTextSize(3);
-  gfx->setCursor(110, 150);
-  gfx->setTextColor(WHITE);
-  gfx->print(value, decimals);
-}
-
-// Test function to draw the acceleration values on the screen, to be used for testing the IMU sensor and the G-force calculations
-float ax[] = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,
-              1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1,
-              2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1,
-              3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1,
-              4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8};
-float ay[] = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,
-              1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1,
-              2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1,
-              3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1,
-              4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8};
-float az[] = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
-              1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
-              2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9,
-              3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9,
-              4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8};
-int accelIndex = 0;
-
-void drawAcceleration()
-{
-  float oldax = 0, olday = 0, oldaz = 0;
-  float ax, ay, az;
-
-  // get the previous values in case of change
-  oldax = liveData.accelX;
-  olday = liveData.accelY;
-  oldaz = liveData.accelZ;
-
-  // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  // {
-  //   // these are the new values to read
-  //   ax = liveData.accelX;
-  //   ay = liveData.accelY;
-  //   az = liveData.accelZ;
-
-  //   // important to set those values to -1 after reading
-  //   // for easy smoothing
-  //   liveData.accelX = -1.0;
-  //   liveData.accelY = -1.0;
-  //   liveData.accelZ = -1.0;
-  //   xSemaphoreGive(xDataMutex);
-  // }
-  // else
-  // {
-  //   ax = liveData.accelX;
-  //   ay = liveData.accelY;
-  //   az = liveData.accelZ;
-  // }
-
-  // cancello
-  gfx->setTextSize(3);
-  gfx->setCursor(50, 100);
-  gfx->setTextColor(BLACK);
-  gfx->print("X:");
-  gfx->print(oldax);
-  gfx->setCursor(50, 140);
-  gfx->print("Y:");
-  gfx->print(olday);
-  gfx->setCursor(50, 180);
-  gfx->print("Z:");
-  gfx->print(oldaz);
-
-  // scrivo
-  gfx->setTextSize(3);
-  gfx->setCursor(50, 100);
-  gfx->setTextColor(WHITE);
-  gfx->print("X:");
-  gfx->print(ax);
-  gfx->setCursor(50, 140);
-  gfx->print("Y:");
-  gfx->print(ay);
-  gfx->setCursor(50, 180);
-  gfx->print("Z:");
-  gfx->print(az);
-}
-
-// Test function to draw a rectangle rotated by an angle, to be used for the front view of the car
-int rotIndex = 0;
-float rotAngles[] = {1.3, 1.6, 1.8, 1.9, 2.1, 2.1, 3.2, 3.4, 3.5, 4.1, 4.4, 4.8, 5, 5.2, 7.1, 7.4, 7.5, 8, 8.4, 9.1, 9.2, 9.2, 9.6, 10.5, 12.1, 12.6, 12.6, 12.6, 13.8, 13.9, 14.8, 15.5, 17.4, 18, 18.2, 18.2, 18.7, 18.8, 19.1, 19.3, 19.5, 20.2, 21.2, 21.7, 22.1, 22.7, 22.9, 23.1, 24.5, 25.6, 26, 26.6, 27.2, 27.3, 27.5, 28.3, 28.4, 28.7, 28.9, 29.9, 30.2, 30.2, 30.3, 31, 31.1, 31.2, 31.2, 31.3, 31.4, 31.6, 31.7, 31.8, 31.9, 32.5, 32.8, 32.8, 33.3, 33.5, 35.1, 35.4, 35.8, 36.7, 37.7, 37.9, 39, 39.1, 39.4, 39.4, 39.6, 40, 40.3, 41, 41.1, 41.7, 41.8, 42, 42.7, 42.7, 43.9, 44.9};
-
-static void drawCarFrontFrame(float current_roll, uint16_t bodyColor, uint16_t lineColor, uint16_t textColor)
+void drawCarFrontFrame(float current_roll, uint16_t bodyColor, uint16_t lineColor, uint16_t textColor)
 {
   int cx = 120;
   int cy = 120;
@@ -580,26 +392,446 @@ static void drawCarSideFrame(float current_roll, uint16_t bodyColor, uint16_t li
   gfx->print(buffer);
 }
 
-float current_roll = 0.0;
-float old_roll = 0.0;
-// we use this variable to update the screen only every 200ms, to avoid unnecessary updates and improve performance
-unsigned long lastUpdateTime = 0;
-
-void drawCarFront()
+void drawGforceDot(float accX, float accY, uint16_t color)
 {
-  // unsigned long now = millis();
-  // if (now - lastUpdateTime > 40) // update every 40ms
+
+  int x = CENTER_X + (accX / MAX_G) * RADIUS;
+  int y = CENTER_Y - (accY / MAX_G) * RADIUS;
+
+  // Draw new dot
+  gfx->fillCircle(x, y, 5, color);
+}
+
+void drawCross(uint16_t color)
+{
+  gfx->fillTriangle(CENTER_X - 86, CENTER_Y - 84, CENTER_X - 84, CENTER_Y - 86, CENTER_X + 86, CENTER_Y + 84, color);
+  gfx->fillTriangle(CENTER_X + 86, CENTER_Y + 84, CENTER_X + 84, CENTER_Y + 86, CENTER_X - 84, CENTER_Y - 86, color);
+  gfx->fillTriangle(CENTER_X - 86, CENTER_Y + 84, CENTER_X - 84, CENTER_Y + 86, CENTER_X + 86, CENTER_Y - 84, color);
+  gfx->fillTriangle(CENTER_X + 86, CENTER_Y - 84, CENTER_X + 84, CENTER_Y - 86, CENTER_X - 84, CENTER_Y + 86, color);
+
+  gfx->fillCircle(CENTER_X, CENTER_Y, 70 / 2, DARKGREY);
+}
+
+void drawArcs(Force force, Quadrant quadrant, bool color)
+{
+  int START_ANGLE;
+
+  switch (quadrant)
+  {
+  case Q1:
+    START_ANGLE = 45;
+    break;
+  case Q2:
+    START_ANGLE = 135;
+    break;
+  case Q3:
+    START_ANGLE = 225;
+    break;
+  case Q4:
+    START_ANGLE = 315;
+    break;
+
+  default:
+    START_ANGLE = 0;
+    break;
+  }
+
+  switch (force)
+  {
+  case LOWF:
+    gfx->fillArc(CENTER_X, CENTER_Y, 122 / 2, 72 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? GREEN : BLACK);
+
+    break;
+  case MEDIUMF:
+    gfx->fillArc(CENTER_X, CENTER_Y, 122 / 2, 72 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? GREEN : BLACK);
+    gfx->fillArc(CENTER_X, CENTER_Y, 184 / 2, 126 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? BLUE : BLACK);
+    break;
+  case HIGHF:
+    gfx->fillArc(CENTER_X, CENTER_Y, 122 / 2, 72 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? GREEN : BLACK);
+    gfx->fillArc(CENTER_X, CENTER_Y, 184 / 2, 126 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? BLUE : BLACK);
+    gfx->fillArc(CENTER_X, CENTER_Y, 240 / 2, 190 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? RED : BLACK);
+    break;
+
+  default:
+    break;
+  }
+}
+
+// here u can add new draw functions for the various screens
+void drawBoost()
+{
+
+  float boostValue;
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    boostValue = liveData.boost;
+    // important to set those values to -1 after reading
+    // for easy smoothing
+    liveData.boost = -1.0;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    boostValue = liveData.boost;
+  }
+
+  // i get the length of the string
+  int length = snprintf(NULL, 0, "%.*f", decimals, boostValue);
+  int prevlength = snprintf(NULL, 0, "%.*f", decimals, val);
+
+  drawGauge(boostValue);
+
+  if (boostValue == -1.0)
+  {
+    return;
+  }
+
+  int startX = 120 - (length * 18) / 2;
+  int prevStartX = 120 - (prevlength * 18) / 2;
+  // da vedere questo
+  if (abs(boostValue - val) > 0.001)
+  {
+    // cancello
+    gfx->setTextSize(3);
+    gfx->setCursor(prevStartX, 150);
+    gfx->setTextColor(BLACK);
+    gfx->print(val, 2);
+  }
+
+  val = boostValue;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, 150);
+  gfx->setTextColor(WHITE);
+  gfx->print(boostValue, 2);
+}
+
+void drawRPM()
+{
+  float value;
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    value = liveData.rpm;
+    // important to set those values to -1 after reading
+    // for easy smoothing
+    liveData.rpm = -1.0;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    value = liveData.rpm;
+  }
+
+  // Serial.print("rpm: ");
+  // Serial.println(value);
+
+  int length = snprintf(NULL, 0, "%.*f", decimals, value);
+
+  drawGauge(value);
+
+  int startX = 120 - (length * 18) / 2;
+  if (value == -1)
+  {
+    return;
+  }
+  // da vedere questo
+  if (abs(value - val) > 0.001)
+  {
+    // cancello
+    gfx->setTextSize(3);
+    gfx->setCursor(startX, 150);
+    gfx->setTextColor(BLACK);
+    gfx->print(startX, decimals);
+  }
+
+  val = value;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(110, 150);
+  gfx->setTextColor(WHITE);
+  gfx->print(value, decimals);
+}
+
+float testData[][2] = {
+
+    // Idle noise
+    {0.02, -0.01},
+    {-0.01, 0.03},
+    {0.00, -0.02},
+    {0.03, 0.01},
+    {-0.02, 0.02},
+    {0.01, -0.03},
+    {-0.03, 0.00},
+    {0.02, 0.02},
+
+    // Smooth acceleration
+    {0.00, 0.10},
+    {0.00, 0.20},
+    {0.01, 0.35},
+    {0.00, 0.50},
+    {0.02, 0.70},
+    {0.00, 0.90},
+    {0.01, 1.10},
+    {0.00, 1.30},
+    {0.00, 1.50},
+    {0.02, 1.70},
+    {0.00, 1.90},
+
+    // Hold acceleration
+    {0.01, 1.85},
+    {0.00, 1.88},
+    {-0.02, 1.80},
+    {0.00, 1.90},
+
+    // Release throttle
+    {0.00, 1.50},
+    {0.00, 1.10},
+    {0.00, 0.70},
+    {0.00, 0.30},
+
+    // Hard braking
+    {0.00, -0.30},
+    {0.00, -0.70},
+    {-0.01, -1.00},
+    {0.00, -1.30},
+    {0.00, -1.60},
+    {0.02, -1.80},
+    {0.00, -2.00},
+
+    // Return to zero
+    {0.00, -1.20},
+    {0.00, -0.60},
+    {0.00, -0.20},
+
+    // Left cornering build
+    {-0.20, 0.00},
+    {-0.40, 0.00},
+    {-0.60, 0.00},
+    {-0.80, 0.02},
+    {-1.00, 0.00},
+    {-1.20, 0.01},
+    {-1.40, 0.00},
+    {-1.60, 0.00},
+
+    // Sustained left turn
+    {-1.70, 0.02},
+    {-1.80, -0.01},
+    {-1.75, 0.00},
+
+    // Combined braking + left
+    {-1.50, -0.50},
+    {-1.60, -0.70},
+    {-1.70, -0.90},
+
+    // Transition to right
+    {-1.00, 0.00},
+    {-0.50, 0.00},
+    {0.00, 0.00},
+    {0.50, 0.00},
+    {1.00, 0.00},
+    {1.30, 0.00},
+    {1.50, 0.01},
+    {1.70, 0.00},
+    {1.80, -0.02},
+
+    // Combined accel + right
+    {1.50, 0.60},
+    {1.60, 0.80},
+    {1.70, 1.00},
+    {1.60, 1.20},
+    {1.50, 1.40},
+
+    // Random racing noise
+    {0.40, 0.30},
+    {-0.30, 0.50},
+    {0.80, -0.60},
+    {-0.90, 0.40},
+    {1.10, -0.20},
+    {-1.20, 0.30},
+    {0.60, -1.10},
+    {-0.70, 1.20},
+    {1.30, -0.80},
+    {-1.40, 0.90},
+
+    // High-G spikes
+    {2.00, 0.00},
+    {-2.00, 0.00},
+    {0.00, 2.00},
+    {0.00, -2.00},
+    {1.80, 1.80},
+    {-1.80, -1.80},
+
+    // Small jitter for filtering test
+    {0.05, 0.04},
+    {-0.04, 0.03},
+    {0.03, -0.05},
+    {0.02, 0.01},
+    {-0.03, -0.02},
+
+    // Extended random realistic driving
+    {0.20, 0.30},
+    {0.40, 0.60},
+    {0.70, 0.80},
+    {1.00, 0.90},
+    {1.20, 0.70},
+    {1.00, 0.40},
+    {0.80, 0.20},
+    {0.50, -0.20},
+    {0.20, -0.60},
+    {-0.30, -0.80},
+    {-0.70, -1.00},
+    {-1.00, -1.20},
+    {-1.30, -1.00},
+    {-1.50, -0.70},
+    {-1.70, -0.40},
+    {-1.80, -0.20},
+    {-1.60, 0.10},
+    {-1.20, 0.40},
+    {-0.80, 0.60},
+    {-0.40, 0.80},
+    {0.00, 1.00},
+    {0.40, 1.20},
+    {0.80, 1.40},
+    {1.20, 1.50},
+    {1.60, 1.30},
+    {1.80, 1.00},
+    {1.50, 0.70},
+    {1.00, 0.40},
+    {0.50, 0.10},
+    {0.00, 0.00}};
+int accelIndex = 0;
+
+float oldax = 0, olday = 0, oldaz = 0;
+Quadrant old_quadrant = (Quadrant)5; // invalid quadrant to force initial draw
+Force old_force = LOWF;
+
+void drawAcceleration()
+{
+  float accX, accY, accZ;
+  // get the previous values in case of change
+  accX = testData[accelIndex % (sizeof(testData) / sizeof(testData[0]))][0];
+  accY = testData[accelIndex % (sizeof(testData) / sizeof(testData[0]))][1];
+  accelIndex++;
+
+  // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   // {
-  //   float roll = roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
-  //   old_roll = roll;
-  //   lastUpdateTime = now;
+  //   // these are the new values to read
+  //   ax = liveData.accelX;
+  //   ay = liveData.accelY;
+  //   az = liveData.accelZ;
+
+  //   // important to set those values to -1 after reading
+  //   // for easy smoothing
+  //   liveData.accelX = -1.0;
+  //   liveData.accelY = -1.0;
+  //   liveData.accelZ = -1.0;
+  //   xSemaphoreGive(xDataMutex);
   // }
   // else
   // {
-  //   roll = old_roll;
+  //   ax = liveData.accelX;
+  //   ay = liveData.accelY;
+  //   az = liveData.accelZ;
   // }
 
-  // float roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+  Quadrant quadrant;
+
+  if (accX >= 0.1 && accY >= 0.1)
+  {
+    quadrant = Q1;
+  }
+  else if (accX < -0.1 && accY >= 0.1)
+  {
+    quadrant = Q2;
+  }
+  else if (accX < -0.1 && accY < -0.1)
+  {
+    quadrant = Q3;
+  }
+  else if (accX >= 0.1 && accY < -0.1)
+  {
+    quadrant = Q4;
+  }
+  else
+  {
+    // if we are close to the center we consider it as no acceleration
+    quadrant = Q1; // default to Q1 when near the center
+  }
+
+  if (quadrant != old_quadrant && old_for)
+  {
+    Serial.printf("Quadrant changed from  %d to %d\n", old_quadrant, quadrant);
+
+    switch (quadrant)
+    {
+    case Q1:
+      drawArcs(HIGHF, old_quadrant, false);
+      drawArcs(HIGHF, quadrant, true);
+      // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
+      drawCross(BLACK);
+      drawCross(WHITE);
+
+      break;
+
+    case Q2:
+      drawArcs(HIGHF, old_quadrant, false);
+      drawArcs(MEDIUMF, quadrant, true);
+      // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
+      drawCross(BLACK);
+      drawCross(WHITE);
+
+      break;
+    case Q3:
+      drawArcs(HIGHF, old_quadrant, false);
+      drawArcs(LOWF, quadrant, true);
+
+      // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
+      drawCross(BLACK);
+      drawCross(WHITE);
+
+      break;
+    case Q4:
+      drawArcs(HIGHF, old_quadrant, false);
+      drawArcs(LOWF, quadrant, true);
+
+      // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
+      drawCross(BLACK);
+      drawCross(WHITE);
+
+      break;
+    }
+    delay(200);
+  }
+  else
+  {
+    delay(300);
+  }
+
+  oldax = accX;
+  olday = accY;
+
+  old_quadrant = quadrant;
+
+  // Should be done by the SPRITE
+  // gfx->drawCircle(CENTER_X, CENTER_Y, 188 / 2, WHITE);
+  // gfx->drawCircle(CENTER_X, CENTER_Y, 187 / 2, WHITE);
+  // gfx->drawCircle(CENTER_X, CENTER_Y, 186 / 2, WHITE);
+
+  // gfx->drawCircle(CENTER_X, CENTER_Y, 126 / 2, WHITE);
+  // gfx->drawCircle(CENTER_X, CENTER_Y, 125 / 2, WHITE);
+  // gfx->drawCircle(CENTER_X, CENTER_Y, 124 / 2, WHITE);
+}
+
+// Test function to draw a rectangle rotated by an angle, to be used for the front view of the car
+int rotIndex = 0;
+float rotAngles[] = {1.3, 1.6, 1.8, 1.9, 2.1, 2.1, 3.2, 3.4, 3.5, 4.1, 4.4, 4.8, 5, 5.2, 7.1, 7.4, 7.5, 8, 8.4, 9.1, 9.2, 9.2, 9.6, 10.5, 12.1, 12.6, 12.6, 12.6, 13.8, 13.9, 14.8, 15.5, 17.4, 18, 18.2, 18.2, 18.7, 18.8, 19.1, 19.3, 19.5, 20.2, 21.2, 21.7, 22.1, 22.7, 22.9, 23.1, 24.5, 25.6, 26, 26.6, 27.2, 27.3, 27.5, 28.3, 28.4, 28.7, 28.9, 29.9, 30.2, 30.2, 30.3, 31, 31.1, 31.2, 31.2, 31.3, 31.4, 31.6, 31.7, 31.8, 31.9, 32.5, 32.8, 32.8, 33.3, 33.5, 35.1, 35.4, 35.8, 36.7, 37.7, 37.9, 39, 39.1, 39.4, 39.4, 39.6, 40, 40.3, 41, 41.1, 41.7, 41.8, 42, 42.7, 42.7, 43.9, 44.9};
+
+float current_roll = 0.0;
+float old_roll = 0.0;
+
+void drawCarFront()
+{
+
   float roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
 
   current_roll = current_roll + (roll - current_roll) * smooth;
