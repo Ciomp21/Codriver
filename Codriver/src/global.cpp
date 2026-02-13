@@ -15,9 +15,12 @@ volatile float zero_x = 0.0;
 volatile float zero_y = 0.0;
 volatile float zero_z = 0.0;
 
-volatile int ui_color = RED;
-volatile int ui_index = 2;
-volatile bool ui_update = true;
+
+// Base startup values for the UI, will be overwritten by the saved states
+// Saved states are loaded in setupScreen function
+volatile int ui_color = 0xFFFFFF;
+volatile int ui_index = 0;
+volatile bool ui_update = false;
 
 int err = 0;
 

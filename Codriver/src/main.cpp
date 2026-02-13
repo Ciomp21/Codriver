@@ -8,6 +8,52 @@
 #include "freertos/task.h"
 #include "sensor.h"
 
+#define SCREEN_BUTTON_PIN 4
+#define SCREEN_BUTTON_DEBOUNCE_MS 50
+
+static void handleScreenButton()
+{
+    static int lastStableState = HIGH;
+    static int lastReadState = HIGH;
+    static unsigned long lastChangeMs = 0;
+
+    int readState = digitalRead(SCREEN_BUTTON_PIN);
+    if (readState != lastReadState)
+    {
+        lastChangeMs = millis();
+        lastReadState = readState;
+    }
+
+    if ((millis() - lastChangeMs) < SCREEN_BUTTON_DEBOUNCE_MS)
+    {
+        return;
+    }
+
+    if (readState == lastStableState)
+    {
+        return;
+    }
+
+    lastStableState = readState;
+
+    if (lastStableState != LOW)
+    {
+        return;
+    }
+
+    if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        int nextIndex = ui_index + 1;
+        if (nextIndex <= 0 || nextIndex >= TOTAL_BITMAPS)
+        {
+            nextIndex = 1;
+        }
+        ui_index = nextIndex;
+        ui_update = true;
+        xSemaphoreGive(xUIMutex);
+    }
+}
+
 void vOBDFetchTask(void *pvParameters)
 {
     setupWifi();
@@ -135,9 +181,10 @@ void vUITask(void *pvParameters)
 
     while (1)
     {
+        handleScreenButton();
         drawScreen();
 
-        vTaskDelay(pdMS_TO_TICKS(16)); // roughly 60 fps
+        vTaskDelay(pdMS_TO_TICKS(20)); // roughly 50 fps
     }
 }
 
@@ -157,6 +204,8 @@ void setup()
     Serial.begin(115200);
     delay(1000);
 
+    pinMode(SCREEN_BUTTON_PIN, INPUT_PULLUP);
+
     xUIMutex = xSemaphoreCreateMutex();
     xSerialMutex = xSemaphoreCreateMutex();
     xBLEMutex = xSemaphoreCreateMutex();
@@ -172,15 +221,15 @@ void setup()
     //     0 // Core 0 (I/O e rete)
     // );
 
-    // xTaskCreatePinnedToCore(
-    //     vSaveTask,
-    //     "Save_data",
-    //     10000,
-    //     NULL,
-    //     1, // Priorità Bassa
-    //     NULL,
-    //     0 // Core 0 (I/O e rete)
-    // );
+    xTaskCreatePinnedToCore(
+        vSaveTask,
+        "Save_data",
+        10000,
+        NULL,
+        1, // Priorità Bassa
+        NULL,
+        0 // Core 0 (I/O e rete)
+    );
 
     // xTaskCreatePinnedToCore(
     //     vSENSFetchTask,

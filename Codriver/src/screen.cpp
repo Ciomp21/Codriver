@@ -77,6 +77,10 @@ void setupScreen()
     ui_index = loadState("screen");
     float min = loadState("min");
     float max = loadState("max");
+    ui_update = true;
+
+    Serial.printf("Loaded states: color: %d, screen: %d, min: %f, max: %f\n", ui_color, ui_index, min, max);
+
     if (min != -1)
     {
       OBDScreens[ui_index].min = min;
@@ -210,12 +214,12 @@ void drawRotatedLine(int cx, int cy, float x1, float y1, float x2, float y2, flo
 
 void drawScreen()
 {
-  int current_index = 3;
+  int current_index;
   bool update = false;
 
   if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   {
-    // current_index = ui_index;
+    current_index = ui_index;
 
     if (ui_update)
     {
@@ -260,21 +264,26 @@ void drawScreen()
 
 // here u can add new draw functions for the various screens
 
+float boostValues[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.75, 1.7, 1.65, 1.6, 1.55, 1.5, 1.45, 1.4, 1.35, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0};
+int boostIndex = 0;
+
 void drawBoost()
 {
-  float boostValue;
-  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  {
-    boostValue = liveData.boost;
-    // important to set those values to -1 after reading
-    // for easy smoothing
-    liveData.boost = -1.0;
-    xSemaphoreGive(xDataMutex);
-  }
-  else
-  {
-    boostValue = liveData.boost;
-  }
+  float boostValue = boostValues[boostIndex++ % (sizeof(boostValues) / sizeof(boostValues[0]))];
+
+  // float boostValue;
+  // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  // {
+  //   boostValue = liveData.boost;
+  //   // important to set those values to -1 after reading
+  //   // for easy smoothing
+  //   liveData.boost = -1.0;
+  //   xSemaphoreGive(xDataMutex);
+  // }
+  // else
+  // {
+  //   boostValue = liveData.boost;
+  // }
 
   // Serial.printf("boost: %f, min: %f, max: %f\n", boostValue, current_min, current_max);
 
@@ -355,6 +364,24 @@ void drawRPM()
   gfx->print(value, decimals);
 }
 
+// Test function to draw the acceleration values on the screen, to be used for testing the IMU sensor and the G-force calculations
+float ax[] = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,
+              1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1,
+              2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1,
+              3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1,
+              4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8};
+float ay[] = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,
+              1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1,
+              2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1,
+              3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1,
+              4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8};
+float az[] = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
+              1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+              2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9,
+              3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9,
+              4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8};
+int accelIndex = 0;
+
 void drawAcceleration()
 {
   float oldax = 0, olday = 0, oldaz = 0;
@@ -365,26 +392,26 @@ void drawAcceleration()
   olday = liveData.accelY;
   oldaz = liveData.accelZ;
 
-  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  {
-    // these are the new values to read
-    ax = liveData.accelX;
-    ay = liveData.accelY;
-    az = liveData.accelZ;
+  // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  // {
+  //   // these are the new values to read
+  //   ax = liveData.accelX;
+  //   ay = liveData.accelY;
+  //   az = liveData.accelZ;
 
-    // important to set those values to -1 after reading
-    // for easy smoothing
-    liveData.accelX = -1.0;
-    liveData.accelY = -1.0;
-    liveData.accelZ = -1.0;
-    xSemaphoreGive(xDataMutex);
-  }
-  else
-  {
-    ax = liveData.accelX;
-    ay = liveData.accelY;
-    az = liveData.accelZ;
-  }
+  //   // important to set those values to -1 after reading
+  //   // for easy smoothing
+  //   liveData.accelX = -1.0;
+  //   liveData.accelY = -1.0;
+  //   liveData.accelZ = -1.0;
+  //   xSemaphoreGive(xDataMutex);
+  // }
+  // else
+  // {
+  //   ax = liveData.accelX;
+  //   ay = liveData.accelY;
+  //   az = liveData.accelZ;
+  // }
 
   // cancello
   gfx->setTextSize(3);
@@ -416,128 +443,204 @@ void drawAcceleration()
 // Test function to draw a rectangle rotated by an angle, to be used for the front view of the car
 int rotIndex = 0;
 float rotAngles[] = {1.3, 1.6, 1.8, 1.9, 2.1, 2.1, 3.2, 3.4, 3.5, 4.1, 4.4, 4.8, 5, 5.2, 7.1, 7.4, 7.5, 8, 8.4, 9.1, 9.2, 9.2, 9.6, 10.5, 12.1, 12.6, 12.6, 12.6, 13.8, 13.9, 14.8, 15.5, 17.4, 18, 18.2, 18.2, 18.7, 18.8, 19.1, 19.3, 19.5, 20.2, 21.2, 21.7, 22.1, 22.7, 22.9, 23.1, 24.5, 25.6, 26, 26.6, 27.2, 27.3, 27.5, 28.3, 28.4, 28.7, 28.9, 29.9, 30.2, 30.2, 30.3, 31, 31.1, 31.2, 31.2, 31.3, 31.4, 31.6, 31.7, 31.8, 31.9, 32.5, 32.8, 32.8, 33.3, 33.5, 35.1, 35.4, 35.8, 36.7, 37.7, 37.9, 39, 39.1, 39.4, 39.4, 39.6, 40, 40.3, 41, 41.1, 41.7, 41.8, 42, 42.7, 42.7, 43.9, 44.9};
-float oldAngle = 0;
 
-void drawCarFront()
+static void drawCarFrontFrame(float current_roll, uint16_t bodyColor, uint16_t lineColor, uint16_t textColor)
 {
-  float angleDeg = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
-  // float angleDeg = 20.0; // example angle, you can replace it with actual data
-
-  if (fabs(angleDeg - oldAngle) > 0.1)
-  {
-
-    oldAngle = angleDeg;
-    int cx = 120;
-    int cy = 120;
-
-    float angle = angleDeg * DEG2RAD;
-    float s = sin(angle);
-    float c = cos(angle);
-
-    // Car body - trapezoidal shape (wider at back/bottom)
-    float bodyFrontW = 35; // Front (narrow)
-    float bodyBackW = 70;  // Back (wide)
-    float bodyH = 50;      // Height
-
-    // Trapezoid points (car viewed from behind)
-    // Front (top) - narrow
-    float x1 = -bodyFrontW / 2, y1 = -bodyH / 2;
-    float x2 = bodyFrontW / 2, y2 = -bodyH / 2;
-    // Back (bottom) - wide
-    float x3 = bodyBackW / 2, y3 = bodyH / 2;
-    float x4 = -bodyBackW / 2, y4 = bodyH / 2;
-
-    // Draw car body (filled trapezoid)
-    int rx1 = cx + x1 * c - y1 * s;
-    int ry1 = cy + x1 * s + y1 * c;
-    int rx2 = cx + x2 * c - y2 * s;
-    int ry2 = cy + x2 * s + y2 * c;
-    int rx3 = cx + x3 * c - y3 * s;
-    int ry3 = cy + x3 * s + y3 * c;
-    int rx4 = cx + x4 * c - y4 * s;
-    int ry4 = cy + x4 * s + y4 * c;
-
-    gfx->fillCircle(120, 120, 92, BLACK);
-
-    // Fill the trapezoid with two triangles
-    gfx->fillTriangle(rx1, ry1, rx2, ry2, rx3, ry3, ui_color);
-    gfx->fillTriangle(rx1, ry1, rx3, ry3, rx4, ry4, ui_color);
-
-    // // Draw outline
-    // gfx->drawLine(rx1, ry1, rx2, ry2, WHITE);
-    // gfx->drawLine(rx2, ry2, rx3, ry3, WHITE);
-    // gfx->drawLine(rx3, ry3, rx4, ry4, WHITE);
-    // gfx->drawLine(rx4, ry4, rx1, ry1, WHITE);
-
-    // Rear window (small rectangle near top)
-    float winW = 20;
-    float winH = 12;
-    float winX1 = -winW / 2, winY1 = -bodyH / 2 + 8;
-    float winX2 = winW / 2, winY2 = -bodyH / 2 + 8;
-    float winX3 = winW / 2, winY3 = -bodyH / 2 + 20;
-    float winX4 = -winW / 2, winY4 = -bodyH / 2 + 20;
-
-    int wrx1 = cx + winX1 * c - winY1 * s;
-    int wry1 = cy + winX1 * s + winY1 * c;
-    int wrx2 = cx + winX2 * c - winY2 * s;
-    int wry2 = cy + winX2 * s + winY2 * c;
-    int wrx3 = cx + winX3 * c - winY3 * s;
-    int wry3 = cy + winX3 * s + winY3 * c;
-    int wrx4 = cx + winX4 * c - winY4 * s;
-    int wry4 = cy + winX4 * s + winY4 * c;
-
-    gfx->fillTriangle(wrx1, wry1, wrx2, wry2, wrx3, wry3, BLACK);
-    gfx->fillTriangle(wrx1, wry1, wrx3, wry3, wrx4, wry4, BLACK);
-
-    // Direction indicator lines from center
-    drawLineFromCenter(angleDeg, 90, 3, ui_color);
-    drawLineFromCenter(180 + angleDeg, 90, 3, ui_color);
-
-    // Text for the current angle
-    char buffer[20];
-    int STRlength = snprintf(buffer, sizeof(buffer), "%.0f%c", angleDeg, 248);
-
-    // Start of the text based on its length
-    int startX = 120 - (STRlength * 18) / 2;
-
-    gfx->setTextSize(3);
-    gfx->setCursor(startX, 180);
-    gfx->setTextColor(WHITE);
-    gfx->print(buffer);
-  }
-}
-
-void drawPitch()
-{
-  float angleDeg = 20.0; // example angle, you can replace it with actual data
   int cx = 120;
-  int cy = 160;
+  int cy = 120;
 
-  float angle = angleDeg * DEG2RAD;
+  float angle = current_roll * DEG2RAD;
   float s = sin(angle);
   float c = cos(angle);
 
-  float w = 50;
-  float h = 15;
+  // Car body - trapezoidal shape (wider at back/bottom)
+  float bodyFrontW = 35; // Front (narrow)
+  float bodyBackW = 70;  // Back (wide)
+  float bodyH = 50;      // Height
 
-  // Pivot slightly rearward
-  float pivotX = -w / 4;
-  float pivotY = 0;
+  // Trapezoid points (car viewed from behind)
+  // Front (top) - narrow
+  float x1 = -bodyFrontW / 2, y1 = -bodyH / 2;
+  float x2 = bodyFrontW / 2, y2 = -bodyH / 2;
+  // Back (bottom) - wide
+  float x3 = bodyBackW / 2, y3 = bodyH / 2;
+  float x4 = -bodyBackW / 2, y4 = bodyH / 2;
 
-  float x1 = -w / 2 - pivotX, y1 = -h / 2 - pivotY;
-  float x2 = w / 2 - pivotX, y2 = -h / 2 - pivotY;
-  float x3 = w / 2 - pivotX, y3 = h / 2 - pivotY;
-  float x4 = -w / 2 - pivotX, y4 = h / 2 - pivotY;
+  // Draw car body (filled trapezoid)
+  int rx1 = cx + x1 * c - y1 * s;
+  int ry1 = cy + x1 * s + y1 * c;
+  int rx2 = cx + x2 * c - y2 * s;
+  int ry2 = cy + x2 * s + y2 * c;
+  int rx3 = cx + x3 * c - y3 * s;
+  int ry3 = cy + x3 * s + y3 * c;
+  int rx4 = cx + x4 * c - y4 * s;
+  int ry4 = cy + x4 * s + y4 * c;
 
-  drawRotatedLine(cx, cy, x1, y1, x2, y2, s, c);
-  drawRotatedLine(cx, cy, x2, y2, x3, y3, s, c);
-  drawRotatedLine(cx, cy, x3, y3, x4, y4, s, c);
-  drawRotatedLine(cx, cy, x4, y4, x1, y1, s, c);
+  // Fill the trapezoid with two triangles
+  gfx->fillTriangle(rx1, ry1, rx2, ry2, rx3, ry3, bodyColor);
+  gfx->fillTriangle(rx1, ry1, rx3, ry3, rx4, ry4, bodyColor);
+
+  // Rear window (small rectangle near top)
+  float winW = 25;
+  float winH = 15;
+  float winX1 = -winW / 2, winY1 = -bodyH / 2 + 8;
+  float winX2 = winW / 2, winY2 = -bodyH / 2 + 8;
+  float winX3 = winW / 2, winY3 = -bodyH / 2 + 20;
+  float winX4 = -winW / 2, winY4 = -bodyH / 2 + 20;
+
+  int wrx1 = cx + winX1 * c - winY1 * s;
+  int wry1 = cy + winX1 * s + winY1 * c;
+  int wrx2 = cx + winX2 * c - winY2 * s;
+  int wry2 = cy + winX2 * s + winY2 * c;
+  int wrx3 = cx + winX3 * c - winY3 * s;
+  int wry3 = cy + winX3 * s + winY3 * c;
+  int wrx4 = cx + winX4 * c - winY4 * s;
+  int wry4 = cy + winX4 * s + winY4 * c;
+
+  gfx->fillTriangle(wrx1, wry1, wrx2, wry2, wrx3, wry3, BLACK);
+  gfx->fillTriangle(wrx1, wry1, wrx3, wry3, wrx4, wry4, BLACK);
+
+  // Direction indicator lines from center
+  drawLineFromCenter(current_roll, 90, 3, lineColor);
+  drawLineFromCenter(180 + current_roll, 90, 3, lineColor);
+
+  // Text for the current angle
+  char buffer[20];
+  int strLength = snprintf(buffer, sizeof(buffer), "%.0f%c", current_roll, 248);
+
+  // Start of the text based on its length
+  int startX = 120 - (strLength * 18) / 2;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, 180);
+  gfx->setTextColor(textColor, BLACK);
+  gfx->print(buffer);
+}
+
+static void drawCarSideFrame(float current_roll, uint16_t bodyColor, uint16_t lineColor, uint16_t textColor)
+{
+  int cx = 120;
+  int cy = 120;
+
+  float angle = current_roll * DEG2RAD;
+  float s = sin(angle);
+  float c = cos(angle);
+
+  float bodyW = 90;
+  float bodyH = 30;
+
+  float bx1 = -bodyW / 2, by1 = -bodyH / 2;
+  float bx2 = bodyW / 2, by2 = -bodyH / 2;
+  float bx3 = bodyW / 2, by3 = bodyH / 2;
+  float bx4 = -bodyW / 2, by4 = bodyH / 2;
+
+  int brx1 = cx + bx1 * c - by1 * s;
+  int bry1 = cy + bx1 * s + by1 * c;
+  int brx2 = cx + bx2 * c - by2 * s;
+  int bry2 = cy + bx2 * s + by2 * c;
+  int brx3 = cx + bx3 * c - by3 * s;
+  int bry3 = cy + bx3 * s + by3 * c;
+  int brx4 = cx + bx4 * c - by4 * s;
+  int bry4 = cy + bx4 * s + by4 * c;
+
+  gfx->fillTriangle(brx1, bry1, brx2, bry2, brx3, bry3, bodyColor);
+  gfx->fillTriangle(brx1, bry1, brx3, bry3, brx4, bry4, bodyColor);
+
+  float cabW = 40;
+  float cabH = 20;
+  float cabYTop = -bodyH / 2 - cabH;
+  float cx1 = -cabW / 2, cy1 = cabYTop;
+  float cx2 = cabW / 2, cy2 = cabYTop;
+  float cx3 = cabW / 2, cy3 = -bodyH / 2;
+  float cx4 = -cabW / 2, cy4 = -bodyH / 2;
+
+  int crx1 = cx + cx1 * c - cy1 * s;
+  int cry1 = cy + cx1 * s + cy1 * c;
+  int crx2 = cx + cx2 * c - cy2 * s;
+  int cry2 = cy + cx2 * s + cy2 * c;
+  int crx3 = cx + cx3 * c - cy3 * s;
+  int cry3 = cy + cx3 * s + cy3 * c;
+  int crx4 = cx + cx4 * c - cy4 * s;
+  int cry4 = cy + cx4 * s + cy4 * c;
+
+  gfx->fillTriangle(crx1, cry1, crx2, cry2, crx3, cry3, bodyColor);
+  gfx->fillTriangle(crx1, cry1, crx3, cry3, crx4, cry4, bodyColor);
+
+  // Direction indicator lines from center
+  drawLineFromCenter(current_roll, 90, 3, lineColor);
+  drawLineFromCenter(180 + current_roll, 90, 3, lineColor);
+
+  char buffer[20];
+  int strLength = snprintf(buffer, sizeof(buffer), "%.0f%c", current_roll, 248);
+  int startX = 120 - (strLength * 18) / 2;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, 180);
+  gfx->setTextColor(textColor, BLACK);
+  gfx->print(buffer);
+}
+
+float current_roll = 0.0;
+float old_roll = 0.0;
+// we use this variable to update the screen only every 200ms, to avoid unnecessary updates and improve performance
+unsigned long lastUpdateTime = 0;
+
+void drawCarFront()
+{
+  // unsigned long now = millis();
+  // if (now - lastUpdateTime > 40) // update every 40ms
+  // {
+  //   float roll = roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+  //   old_roll = roll;
+  //   lastUpdateTime = now;
+  // }
+  // else
+  // {
+  //   roll = old_roll;
+  // }
+
+  // float roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+  float roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+
+  current_roll = current_roll + (roll - current_roll) * smooth;
+
+  if (fabs(current_roll - old_roll) <= 1.0)
+  {
+    return;
+  }
+
+  drawCarFrontFrame(old_roll, BLACK, BLACK, BLACK);
+
+  drawCarFrontFrame(current_roll, ui_color, ui_color, WHITE);
+
+  old_roll = current_roll;
+}
+
+float current_pitch = 0.0;
+float old_pitch = 0.0;
+
+void drawPitch()
+{
+
+  float pitch = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+
+  current_pitch = current_pitch + (pitch - current_pitch) * smooth;
+
+  if (fabs(current_pitch - old_pitch) <= 1.0)
+  {
+    return;
+  }
+
+  drawCarSideFrame(old_pitch, BLACK, BLACK, BLACK);
+
+  drawCarSideFrame(current_pitch, ui_color, ui_color, WHITE);
+
+  old_pitch = current_pitch;
 }
 
 void drawInit()
 {
-  char *msg = "Errore non riconosciuto";
+  char *msg = (char *)"Errore sconosciuto";
 
   if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
   {
@@ -550,7 +653,7 @@ void drawInit()
     xSemaphoreGive(xUIMutex);
   }
 
-  int length = snprintf(NULL, 0, msg);
+  int length = strlen(msg);
   int startX = 120 - (length * 6) / 2;
   gfx->setTextSize(1);
   gfx->setCursor(startX, 190);
