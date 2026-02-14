@@ -14,12 +14,19 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
-typedef struct{
+#define DEG2RAD 0.0174532925
+
+// HERE WE CHOOSE IF WE ARE IN TESTING MODE OR NOT, IF WE ARE IN TESTING MODE THE UI WILL BE SIMULATED WITH SOME RANDOM VALUES, OTHERWISE IT WILL BE DRIVEN BY THE REAL DATA
+// #define TESTING
+
+typedef struct
+{
     int resbytes;
     void (*interpretation)(long raw_val);
 } OBDCommand_t;
 
-typedef struct{
+typedef struct
+{
     const char *bitmap_file;
     int decimals;
     float min;
@@ -27,7 +34,8 @@ typedef struct{
     void (*drawFunction)();
 } DataTypes_t;
 
-typedef struct{
+typedef struct
+{
     float speed;
     float rpm;
     float boost;
@@ -54,12 +62,16 @@ typedef struct{
     float humidity;
 
     // IMU sensor data
+
+    // For G-force calculations
     float accelX;
     float accelY;
     float accelZ;
-    float gyroX;
-    float gyroY;
-    float gyroZ;
+
+    // Might not be useful
+    // float gyroX;
+    // float gyroY;
+    // float gyroZ;
 
     float roll;
     float pitch;
@@ -70,7 +82,7 @@ extern void rpm(long raw_val);
 extern void boost(long raw_val);
 extern DataTypes_t OBDScreens[];
 extern std::map<std::string, OBDCommand_t> obdCommandMap;
-extern std::map<int, char*> errorMap;
+extern std::map<int, char *> errorMap;
 extern const int TOTAL_BITMAPS;
 
 // semafori vari
@@ -99,13 +111,20 @@ extern void saveState(const char *state, int val);
 extern int loadState(const char *state);
 extern void setupWifi();
 extern void setupBLE();
+
+// funzioni per disegnare le schermate
 extern void setupScreen();
-extern void changeBitmap();
+extern void changeBitmap(int index);
 extern void drawBoost();
 extern void drawRPM();
 extern void drawInit();
 extern void drawAcceleration();
 extern void drawScreen();
+extern void drawPitch();
+extern void drawRoll();
+extern void drawBattery();
+extern void drawTemperature();
+
 extern void checkWifiStatus();
 extern int checkConnection();
 extern int sendOBDCommand(const char *pid);
@@ -115,6 +134,7 @@ extern void readIMU();
 extern void InitSensors();
 extern void setError(int errCode);
 extern int getError();
+
 // task
 extern void vUITask(void *pvParameters);
 extern void vDataFetchTask(void *pvParameters);

@@ -8,6 +8,53 @@
 #include "freertos/task.h"
 #include "sensor.h"
 
+#ifdef TESTING
+#define SCREEN_BUTTON_PIN 1
+#define SCREEN_BUTTON_DEBOUNCE_MS 50
+static void handleScreenButton()
+{
+    static int lastStableState = HIGH;
+    static int lastReadState = HIGH;
+    static unsigned long lastChangeMs = 0;
+
+    int readState = digitalRead(SCREEN_BUTTON_PIN);
+    if (readState != lastReadState)
+    {
+        lastChangeMs = millis();
+        lastReadState = readState;
+    }
+
+    if ((millis() - lastChangeMs) < SCREEN_BUTTON_DEBOUNCE_MS)
+    {
+        return;
+    }
+
+    if (readState == lastStableState)
+    {
+        return;
+    }
+
+    lastStableState = readState;
+
+    if (lastStableState != LOW)
+    {
+        return;
+    }
+
+    if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        int nextIndex = ui_index + 1;
+        if (nextIndex <= 0 || nextIndex >= TOTAL_BITMAPS)
+        {
+            nextIndex = 1;
+        }
+        ui_index = nextIndex;
+        ui_update = true;
+        xSemaphoreGive(xUIMutex);
+    }
+}
+
+#endif
 void vOBDFetchTask(void *pvParameters)
 {
     setupWifi();
@@ -26,14 +73,14 @@ void vOBDFetchTask(void *pvParameters)
             int status = checkConnection();
             if (status == 0)
             {
-                if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE){
+                if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+                {
                     err = 0;
                     ui_update = true;
                     xSemaphoreGive(xUIMutex);
                 }
                 reconnect = false;
                 errorCounter = 0;
-                
             }
             else
             {
@@ -41,8 +88,10 @@ void vOBDFetchTask(void *pvParameters)
                 vTaskDelay(pdMS_TO_TICKS(2000));
             }
             vTaskDelay(pdMS_TO_TICKS(100));
-        } else {
-            
+        }
+        else
+        {
+
             int ret = 0;
             bool readSuccess = false;
             int errorCount = 0;
@@ -52,25 +101,28 @@ void vOBDFetchTask(void *pvParameters)
 
             // adding more reads is possibile but not quite easy
 
-
             // ATTENZIONE FATTO SOLO PER DEBUG!!!!, serve mettere i dati effettivi
             if (cycleCounter % 2 == 0)
             {
                 ret = sendOBDCommand(PID_BOOST);
             }
 
-            if (ret == -1) {
+            if (ret == -1)
+            {
                 Serial.println("Troppi errori, riconnessione... ");
                 errorCounter++;
-                if (errorCounter > 10){
+                if (errorCounter > 10)
+                {
                     reconnect = true;
-                    if(xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE){
-                        if(err == 0) setError(1);
+                    if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+                    {
+                        if (err == 0)
+                            setError(1);
                         xSemaphoreGive(xUIMutex);
                     }
-                } 
+                }
             }
-            
+
             cycleCounter++;
 
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -81,15 +133,16 @@ void vOBDFetchTask(void *pvParameters)
 
 void vSENSFetchTask(void *pvParameters)
 {
-    // InitSensors();
+    InitSensors();
+    Serial.println("Sensor Task Started.");
 
     while (1)
     {
         // Read temperature and humidity, acceleration and incline
 
-        // readTemperature();
-        // readHumidity();
-        // readIMU();
+        readTemperature();
+        readHumidity();
+        readIMU();
 
         vTaskDelay(pdMS_TO_TICKS(150));
     }
@@ -97,12 +150,15 @@ void vSENSFetchTask(void *pvParameters)
 
 void vSaveTask(void *pvParameters)
 {
-    while(1){
-        
-        if(xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE){
-            if(ui_index == 0) {
+    while (1)
+    {
+
+        if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+        {
+            if (ui_index == 0)
+            {
                 xSemaphoreGive(xUIMutex);
-                vTaskDelay(pdMS_TO_TICKS(5000)); 
+                vTaskDelay(pdMS_TO_TICKS(5000));
                 continue;
             }
             saveState("screen", ui_index);
@@ -119,17 +175,21 @@ void vSaveTask(void *pvParameters)
 
 void vUITask(void *pvParameters)
 {
-    float received_val;
+
     setupScreen();
+
+    delay(1000); // wait for the first data to arrive
 
     while (1)
     {
+#ifdef TESTING
+        handleScreenButton();
+#endif
         drawScreen();
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(20)); // roughly 50 fps
     }
 }
-
 
 void vBLETask(void *pvParameters)
 {
@@ -137,13 +197,8 @@ void vBLETask(void *pvParameters)
 
     while (1)
     {
-        
 
         vTaskDelay(pdMS_TO_TICKS(500));
-
-        // just for testing, read the temperature and print it
-        float temp = temperatureRead();
-        Serial.printf("🔥 Temp CPU: %.1f °C\n", temp);
     }
 }
 
@@ -151,13 +206,15 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000);
-    
+
+#ifdef TESTING
+    pinMode(SCREEN_BUTTON_PIN, INPUT_PULLUP);
+#endif
+
     xUIMutex = xSemaphoreCreateMutex();
     xSerialMutex = xSemaphoreCreateMutex();
     xBLEMutex = xSemaphoreCreateMutex();
     xDataMutex = xSemaphoreCreateMutex();
-
-
 
     xTaskCreatePinnedToCore(
         vOBDFetchTask,
@@ -178,15 +235,16 @@ void setup()
         NULL,
         0 // Core 0 (I/O e rete)
     );
-    // xTaskCreatePinnedToCore(
-    //     vSENSFetchTask,
-    //     "ACC_Fetch",
-    //     10000,
-    //     NULL,
-    //     1, // Priorità Bassa
-    //     NULL,
-    //     0 // Core 0 (I/O e rete)
-    // );
+
+    xTaskCreatePinnedToCore(
+        vSENSFetchTask,
+        "ACC_Fetch",
+        10000,
+        NULL,
+        1, // Priorità Bassa
+        NULL,
+        0 // Core 0 (I/O e rete)
+    );
 
     xTaskCreatePinnedToCore(
         vUITask,
@@ -207,8 +265,6 @@ void setup()
         NULL,
         0 // Core 0
     );
-
-
 }
 
 void loop()
