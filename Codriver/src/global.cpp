@@ -15,12 +15,11 @@ volatile float zero_x = 0.0;
 volatile float zero_y = 0.0;
 volatile float zero_z = 0.0;
 
-
 // Base startup values for the UI, will be overwritten by the saved states
 // Saved states are loaded in setupScreen function
 volatile int ui_color = 0xFFFFFF;
-volatile int ui_index = 0;
-volatile bool ui_update = false;
+volatile int ui_index = 1;
+volatile bool ui_update = true;
 
 int err = 0;
 
@@ -52,6 +51,13 @@ DataTypes_t OBDScreens[] = {
         .drawFunction = drawBoost,
     },
     {
+        .bitmap_file = "/rpm.bin",
+        .decimals = 0,
+        .min = 0,
+        .max = 8000,
+        .drawFunction = drawRPM,
+    },
+    {
         .bitmap_file = "/gforce.bin",
         .decimals = 2,
         .min = 0,
@@ -59,14 +65,28 @@ DataTypes_t OBDScreens[] = {
         .drawFunction = drawAcceleration,
     },
     {
-        .bitmap_file = "/pitch.bin",
+        .bitmap_file = "/temp.bin",
+        .decimals = 0,
+        .min = 0,
+        .max = 0,
+        .drawFunction = drawTemperature,
+    },
+    {
+        .bitmap_file = "/battery.bin",
+        .decimals = 0,
+        .min = 0,
+        .max = 0,
+        .drawFunction = drawBattery,
+    },
+    {
+        .bitmap_file = "/PR.bin",
         .decimals = 0,
         .min = -90,
         .max = 90,
-        .drawFunction = drawCarFront,
+        .drawFunction = drawRoll,
     },
     {
-        .bitmap_file = "/pitch.bin",
+        .bitmap_file = "/PR.bin",
         .decimals = 0,
         .min = -90,
         .max = 90,

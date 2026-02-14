@@ -56,10 +56,13 @@ void setupScreen()
   changeBitmap(0);
 
   // wait for the wifi to be connected before loading the states, otherwise we might have problems with the preferences library
-  // while (!is_tcp_connected)
-  // {
-  //   vTaskDelay(pdMS_TO_TICKS(100));
-  // }
+
+#ifndef TESTING
+  while (!is_tcp_connected)
+  {
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+#endif
 
   if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
   {
@@ -120,9 +123,6 @@ void drawScreen()
       changeBitmap(current_index);
       current_min = screen.min;
       current_max = screen.max;
-
-      // Just for now
-      gfx->fillScreen(BLACK);
     }
   }
 
@@ -444,11 +444,11 @@ void drawArcs(Force force, Quadrant quadrant, bool color)
     break;
   case MEDIUMF:
     gfx->fillArc(CENTER_X, CENTER_Y, 122 / 2, 72 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? GREEN : BLACK);
-    gfx->fillArc(CENTER_X, CENTER_Y, 184 / 2, 126 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? BLUE : BLACK);
+    gfx->fillArc(CENTER_X, CENTER_Y, 184 / 2, 126 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? YELLOW : BLACK);
     break;
   case HIGHF:
     gfx->fillArc(CENTER_X, CENTER_Y, 122 / 2, 72 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? GREEN : BLACK);
-    gfx->fillArc(CENTER_X, CENTER_Y, 184 / 2, 126 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? BLUE : BLACK);
+    gfx->fillArc(CENTER_X, CENTER_Y, 184 / 2, 126 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? YELLOW : BLACK);
     gfx->fillArc(CENTER_X, CENTER_Y, 240 / 2, 190 / 2, START_ANGLE, START_ANGLE + GFORCE_INTERVAL, color ? RED : BLACK);
     break;
 
@@ -475,6 +475,11 @@ void drawBoost()
     boostValue = liveData.boost;
   }
 
+#ifdef TESTING
+  // for testing purposes, we simulate some rpm values
+  boostValue = 1.0 + 0.5 * sin(millis() / 1000.0);
+#endif
+
   // i get the length of the string
   int length = snprintf(NULL, 0, "%.*f", decimals, boostValue);
   int prevlength = snprintf(NULL, 0, "%.*f", decimals, val);
@@ -498,12 +503,12 @@ void drawBoost()
     gfx->print(val, 2);
   }
 
-  val = boostValue;
-
   gfx->setTextSize(3);
   gfx->setCursor(startX, 150);
   gfx->setTextColor(WHITE);
   gfx->print(boostValue, 2);
+
+  val = boostValue;
 }
 
 void drawRPM()
@@ -522,8 +527,10 @@ void drawRPM()
     value = liveData.rpm;
   }
 
-  // Serial.print("rpm: ");
-  // Serial.println(value);
+#ifdef TESTING
+  // for testing purposes, we simulate some rpm values
+  value = 3000 + 2000 * sin(millis() / 1000.0);
+#endif
 
   int length = snprintf(NULL, 0, "%.*f", decimals, value);
 
@@ -541,17 +548,22 @@ void drawRPM()
     gfx->setTextSize(3);
     gfx->setCursor(startX, 150);
     gfx->setTextColor(BLACK);
-    gfx->print(startX, decimals);
+    gfx->print(val, decimals);
   }
 
   val = value;
 
   gfx->setTextSize(3);
-  gfx->setCursor(110, 150);
+  gfx->setCursor(startX, 150);
   gfx->setTextColor(WHITE);
   gfx->print(value, decimals);
 }
 
+float oldax = 0, olday = 0, oldaz = 0;
+Quadrant old_quadrant = (Quadrant)-1; // invalid quadrant to force initial draw
+Force old_force = (Force)-1;          // invalid force to force initial draw
+
+#ifdef TESTING
 float testData[][2] = {
 
     // Idle noise
@@ -699,42 +711,40 @@ float testData[][2] = {
     {1.00, 0.40},
     {0.50, 0.10},
     {0.00, 0.00}};
-int accelIndex = 0;
 
-float oldax = 0, olday = 0, oldaz = 0;
-Quadrant old_quadrant = (Quadrant)5; // invalid quadrant to force initial draw
-Force old_force = LOWF;
+int accIndex = 0;
+#endif
 
 void drawAcceleration()
 {
   float accX, accY, accZ;
-  // get the previous values in case of change
-  accX = testData[accelIndex % (sizeof(testData) / sizeof(testData[0]))][0];
-  accY = testData[accelIndex % (sizeof(testData) / sizeof(testData[0]))][1];
-  accelIndex++;
 
-  // if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  // {
-  //   // these are the new values to read
-  //   ax = liveData.accelX;
-  //   ay = liveData.accelY;
-  //   az = liveData.accelZ;
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    // these are the new values to read
+    accX = liveData.accelX;
+    accY = liveData.accelY;
+    accZ = liveData.accelZ;
 
-  //   // important to set those values to -1 after reading
-  //   // for easy smoothing
-  //   liveData.accelX = -1.0;
-  //   liveData.accelY = -1.0;
-  //   liveData.accelZ = -1.0;
-  //   xSemaphoreGive(xDataMutex);
-  // }
-  // else
-  // {
-  //   ax = liveData.accelX;
-  //   ay = liveData.accelY;
-  //   az = liveData.accelZ;
-  // }
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    accX = liveData.accelX;
+    accY = liveData.accelY;
+    accZ = liveData.accelZ;
+  }
+
+#ifdef TESTING
+  // for testing purposes, we simulate some acceleration values
+  accX = testData[accIndex][0];
+  accY = testData[accIndex][1];
+  accIndex = (accIndex + 1) % (sizeof(testData) / sizeof(testData[0]));
+  accZ = 0;
+#endif
 
   Quadrant quadrant;
+  Force currentForce;
 
   if (accX >= 0.1 && accY >= 0.1)
   {
@@ -758,15 +768,30 @@ void drawAcceleration()
     quadrant = Q1; // default to Q1 when near the center
   }
 
-  if (quadrant != old_quadrant && old_for)
+  float magnitude = sqrt(accX * accX + accY * accY);
+
+  if (magnitude < 0.5)
+  {
+    currentForce = LOWF;
+  }
+  else if (magnitude < 1.0)
+  {
+    currentForce = MEDIUMF;
+  }
+  else
+  {
+    currentForce = HIGHF;
+  }
+
+  if (quadrant != old_quadrant && currentForce != old_force)
   {
     Serial.printf("Quadrant changed from  %d to %d\n", old_quadrant, quadrant);
 
     switch (quadrant)
     {
     case Q1:
-      drawArcs(HIGHF, old_quadrant, false);
-      drawArcs(HIGHF, quadrant, true);
+      drawArcs(old_force, old_quadrant, false);
+      drawArcs(currentForce, quadrant, true);
       // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
       drawCross(BLACK);
       drawCross(WHITE);
@@ -774,16 +799,16 @@ void drawAcceleration()
       break;
 
     case Q2:
-      drawArcs(HIGHF, old_quadrant, false);
-      drawArcs(MEDIUMF, quadrant, true);
+      drawArcs(old_force, old_quadrant, false);
+      drawArcs(currentForce, quadrant, true);
       // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
       drawCross(BLACK);
       drawCross(WHITE);
 
       break;
     case Q3:
-      drawArcs(HIGHF, old_quadrant, false);
-      drawArcs(LOWF, quadrant, true);
+      drawArcs(old_force, old_quadrant, false);
+      drawArcs(currentForce, quadrant, true);
 
       // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
       drawCross(BLACK);
@@ -791,8 +816,8 @@ void drawAcceleration()
 
       break;
     case Q4:
-      drawArcs(HIGHF, old_quadrant, false);
-      drawArcs(LOWF, quadrant, true);
+      drawArcs(old_force, old_quadrant, false);
+      drawArcs(currentForce, quadrant, true);
 
       // ONLY AT DRAW OF THE ARC, to avoid redrawing it every time
       drawCross(BLACK);
@@ -800,17 +825,18 @@ void drawAcceleration()
 
       break;
     }
-    delay(200);
+
+    old_quadrant = quadrant;
+    old_force = currentForce;
   }
-  else
-  {
-    delay(300);
-  }
+
+#ifdef TESTING
+  delay(100);
+#endif
 
   oldax = accX;
   olday = accY;
-
-  old_quadrant = quadrant;
+  oldaz = accZ;
 
   // Should be done by the SPRITE
   // gfx->drawCircle(CENTER_X, CENTER_Y, 188 / 2, WHITE);
@@ -829,10 +855,23 @@ float rotAngles[] = {1.3, 1.6, 1.8, 1.9, 2.1, 2.1, 3.2, 3.4, 3.5, 4.1, 4.4, 4.8,
 float current_roll = 0.0;
 float old_roll = 0.0;
 
-void drawCarFront()
+void drawRoll()
 {
+  float roll;
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    // these are the new values to read
+    roll = liveData.roll;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    roll = liveData.roll;
+  }
 
-  float roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+#ifdef TESTING
+  roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+#endif
 
   current_roll = current_roll + (roll - current_roll) * smooth;
 
@@ -854,7 +893,22 @@ float old_pitch = 0.0;
 void drawPitch()
 {
 
-  float pitch = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+  float pitch;
+
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    // these are the new values to read
+    pitch = liveData.pitch;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    pitch = liveData.pitch;
+  }
+
+#ifdef TESTING
+  pitch = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
+#endif
 
   current_pitch = current_pitch + (pitch - current_pitch) * smooth;
 
@@ -868,6 +922,57 @@ void drawPitch()
   drawCarSideFrame(current_pitch, ui_color, ui_color, WHITE);
 
   old_pitch = current_pitch;
+}
+
+void drawBattery()
+{
+  // For testing, we simulate a battery level that decreases over time
+  static float batteryLevel = 100.0;
+  batteryLevel -= 0.1; // Simulate battery drain
+
+  if (batteryLevel < 0)
+    batteryLevel = 100.0; // Reset for continuous testing
+
+  int length = snprintf(NULL, 0, "Battery: %.1f%%", batteryLevel);
+  int startX = 120 - (length * 6) / 2;
+
+  gfx->setTextSize(1);
+  gfx->setCursor(startX, 190);
+  gfx->setTextColor(WHITE);
+  gfx->print("Battery: ");
+  gfx->print(batteryLevel, 1);
+}
+
+float old_out_temp = -100.0;
+float old_in_temp = -100.0;
+
+void printTemperature(float temp, int strX, int strY, uint16_t color)
+{
+  char tempStr[20];
+  int length = snprintf(tempStr, sizeof(tempStr), "%.1fC%c", temp, 248); // 248 is the degree symbol in extended ASCII
+  int startX = strX - (length * 6) / 2;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, strY);
+  gfx->setTextColor(color);
+  gfx->print(tempStr);
+}
+
+void drawTemperature()
+{
+  // For testing, we simulate a temperature that fluctuates over time
+  static float temperature = 90.0;
+  temperature += 0.5 * sin(millis() / 2000.0); // Simulate temperature changes
+
+  temperature *= 0.9; // Constrain to a realistic range and apply a scaling factor
+
+  printTemperature(old_in_temp, 130, 95, BLACK);
+  printTemperature(temperature, 130, 95, ui_color);
+  old_in_temp = temperature;
+
+  printTemperature(old_out_temp, 130, 145, BLACK);
+  printTemperature(temperature - 10, 130, 145, ui_color);
+  old_out_temp = temperature - 10;
 }
 
 void drawInit()

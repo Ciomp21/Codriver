@@ -11,6 +11,8 @@ private:
     float pitch = 0.0f; // in radians
     unsigned long last_update_time = 0;
 
+    float alpha = 0.96f; // Dai più peso all'accelerometro
+
 public:
     float roll_deg = 0;
     float pitch_deg = 0;
@@ -22,8 +24,6 @@ public:
     float gx_offset = 0.0f;
     float gy_offset = 0.0f;
     float gz_offset = 0.0f;
-
-    float alpha = 0.96f; // Dai più peso all'accelerometro
 
     void calibrate(int samples = 1000)
     {
@@ -60,7 +60,7 @@ public:
 
         ax_offset = ax_sum / samples;
         ay_offset = ay_sum / samples;
-        az_offset = az_sum / samples; 
+        az_offset = az_sum / samples;
 
         gx_offset = gx_sum / samples;
         gy_offset = gy_sum / samples;
@@ -146,6 +146,6 @@ public:
         ay = ay - gy;
         az = az - gz;
 
-        printf("Gravity -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", gx, gy, gz);
+        Serial.printf("Gravity -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", gx, gy, gz);
     }
 };

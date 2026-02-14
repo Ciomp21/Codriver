@@ -191,7 +191,7 @@ void readIMU()
     // Check if I2C reading was successful
     if (i2cReading(0x3B, 14, buffer) != 0)
     {
-        // Serial.println("⚠️  Skipping IMU reading due to I2C error");
+        Serial.println("⚠️  Skipping IMU reading due to I2C error");
         return; // Skip this reading if I2C failed
     }
 
@@ -218,16 +218,18 @@ void readIMU()
     filter.update(accelX * 9.81f, accelY * 9.81f, accelZ * 9.81f, gyroX, gyroY);
 
     // Remove gravity component
-    // filter.removeGravity(accelX, accelY, accelZ);
+    filter.removeGravity(accelX, accelY, accelZ);
 
+#ifdef TESTING
     unsigned long currentTime = micros();
 
     if (currentTime - lastIMUPrintTime >= 3000)
     {
         lastIMUPrintTime = currentTime;
-        // Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
-        // Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
+        Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
+        Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
     }
+#endif
 
     if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {

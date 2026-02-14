@@ -16,6 +16,9 @@
 
 #define DEG2RAD 0.0174532925
 
+// HERE WE CHOOSE IF WE ARE IN TESTING MODE OR NOT, IF WE ARE IN TESTING MODE THE UI WILL BE SIMULATED WITH SOME RANDOM VALUES, OTHERWISE IT WILL BE DRIVEN BY THE REAL DATA
+// #define TESTING
+
 typedef struct
 {
     int resbytes;
@@ -111,14 +114,16 @@ extern void setupBLE();
 
 // funzioni per disegnare le schermate
 extern void setupScreen();
-extern void changeBitmap();
+extern void changeBitmap(int index);
 extern void drawBoost();
 extern void drawRPM();
 extern void drawInit();
 extern void drawAcceleration();
 extern void drawScreen();
 extern void drawPitch();
-extern void drawCarFront();
+extern void drawRoll();
+extern void drawBattery();
+extern void drawTemperature();
 
 extern void checkWifiStatus();
 extern int checkConnection();

@@ -6,8 +6,8 @@
 #define DHTTYPE DHT11 /**< DHT TYPE 11 */
 #define DHTPIN 2      // GPIO pin where the DHT11 is connected
 #define MPU_ADDR 0x68 // I2C address of the MPU6050
-#define I2C_SDA_PIN 4 // Pin per i dati I2C
-#define I2C_SCL_PIN 5 // Pin per il clock I2C
+#define I2C_SDA_PIN 5 // Pin per i dati I2C
+#define I2C_SCL_PIN 4 // Pin per il clock I2C
 
 // MPU6050 Register Map
 // | Registro       | Indirizzo | Funzione                       |

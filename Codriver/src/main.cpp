@@ -8,9 +8,9 @@
 #include "freertos/task.h"
 #include "sensor.h"
 
-#define SCREEN_BUTTON_PIN 4
+#ifdef TESTING
+#define SCREEN_BUTTON_PIN 1
 #define SCREEN_BUTTON_DEBOUNCE_MS 50
-
 static void handleScreenButton()
 {
     static int lastStableState = HIGH;
@@ -54,6 +54,7 @@ static void handleScreenButton()
     }
 }
 
+#endif
 void vOBDFetchTask(void *pvParameters)
 {
     setupWifi();
@@ -139,9 +140,9 @@ void vSENSFetchTask(void *pvParameters)
     {
         // Read temperature and humidity, acceleration and incline
 
-        // readTemperature();
-        // readHumidity();
-        // readIMU();
+        readTemperature();
+        readHumidity();
+        readIMU();
 
         vTaskDelay(pdMS_TO_TICKS(150));
     }
@@ -181,7 +182,9 @@ void vUITask(void *pvParameters)
 
     while (1)
     {
+#ifdef TESTING
         handleScreenButton();
+#endif
         drawScreen();
 
         vTaskDelay(pdMS_TO_TICKS(20)); // roughly 50 fps
@@ -204,22 +207,24 @@ void setup()
     Serial.begin(115200);
     delay(1000);
 
+#ifdef TESTING
     pinMode(SCREEN_BUTTON_PIN, INPUT_PULLUP);
+#endif
 
     xUIMutex = xSemaphoreCreateMutex();
     xSerialMutex = xSemaphoreCreateMutex();
     xBLEMutex = xSemaphoreCreateMutex();
     xDataMutex = xSemaphoreCreateMutex();
 
-    // xTaskCreatePinnedToCore(
-    //     vOBDFetchTask,
-    //     "OBD_Fetch",
-    //     16000,
-    //     NULL,
-    //     1, // Priorità Bassa
-    //     NULL,
-    //     0 // Core 0 (I/O e rete)
-    // );
+    xTaskCreatePinnedToCore(
+        vOBDFetchTask,
+        "OBD_Fetch",
+        16000,
+        NULL,
+        1, // Priorità Bassa
+        NULL,
+        0 // Core 0 (I/O e rete)
+    );
 
     xTaskCreatePinnedToCore(
         vSaveTask,
@@ -231,15 +236,15 @@ void setup()
         0 // Core 0 (I/O e rete)
     );
 
-    // xTaskCreatePinnedToCore(
-    //     vSENSFetchTask,
-    //     "ACC_Fetch",
-    //     10000,
-    //     NULL,
-    //     1, // Priorità Bassa
-    //     NULL,
-    //     0 // Core 0 (I/O e rete)
-    // );
+    xTaskCreatePinnedToCore(
+        vSENSFetchTask,
+        "ACC_Fetch",
+        10000,
+        NULL,
+        1, // Priorità Bassa
+        NULL,
+        0 // Core 0 (I/O e rete)
+    );
 
     xTaskCreatePinnedToCore(
         vUITask,
@@ -251,15 +256,15 @@ void setup()
         1 // Core 1 (Dedicato all'UI)
     );
 
-    // xTaskCreatePinnedToCore(
-    //     vBLETask,
-    //     "BLE_Handler",
-    //     16000,
-    //     NULL,
-    //     1, // Priorità Media
-    //     NULL,
-    //     0 // Core 0
-    // );
+    xTaskCreatePinnedToCore(
+        vBLETask,
+        "BLE_Handler",
+        16000,
+        NULL,
+        1, // Priorità Media
+        NULL,
+        0 // Core 0
+    );
 }
 
 void loop()
