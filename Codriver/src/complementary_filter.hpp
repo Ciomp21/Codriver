@@ -146,6 +146,6 @@ public:
         ay = ay - gy;
         az = az - gz;
 
-        Serial.printf("Gravity -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", gx, gy, gz);
+        // Serial.printf("Gravity -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", gx, gy, gz);
     }
 };

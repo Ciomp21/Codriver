@@ -8,61 +8,21 @@
 #include "freertos/task.h"
 #include "sensor.h"
 
-#ifdef TESTING
-#define SCREEN_BUTTON_PIN 1
-#define SCREEN_BUTTON_DEBOUNCE_MS 50
-static void handleScreenButton()
-{
-    static int lastStableState = HIGH;
-    static int lastReadState = HIGH;
-    static unsigned long lastChangeMs = 0;
+// -------------------------------------------------
+//                      TASKS
+// -------------------------------------------------
 
-    int readState = digitalRead(SCREEN_BUTTON_PIN);
-    if (readState != lastReadState)
-    {
-        lastChangeMs = millis();
-        lastReadState = readState;
-    }
 
-    if ((millis() - lastChangeMs) < SCREEN_BUTTON_DEBOUNCE_MS)
-    {
-        return;
-    }
+// This task handles the Wi-Fi fetching and connection
 
-    if (readState == lastStableState)
-    {
-        return;
-    }
-
-    lastStableState = readState;
-
-    if (lastStableState != LOW)
-    {
-        return;
-    }
-
-    if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
-    {
-        int nextIndex = ui_index + 1;
-        if (nextIndex <= 0 || nextIndex >= TOTAL_BITMAPS)
-        {
-            nextIndex = 1;
-        }
-        ui_index = nextIndex;
-        ui_update = true;
-        xSemaphoreGive(xUIMutex);
-    }
-}
-
-#endif
 void vOBDFetchTask(void *pvParameters)
 {
     setupWifi();
 
     int cycleCounter = 0;
-    DataCollector_t localSnap = {0};
     bool reconnect = true;
     int errorCounter = 0;
+    int secondCycle = 0;
 
     while (1)
     {
@@ -84,47 +44,67 @@ void vOBDFetchTask(void *pvParameters)
             }
             else
             {
-                setError(1);
                 vTaskDelay(pdMS_TO_TICKS(2000));
             }
             vTaskDelay(pdMS_TO_TICKS(100));
         }
         else
         {
-
             int ret = 0;
-            bool readSuccess = false;
-            int errorCount = 0;
 
-            // the technique here is to read one OBD parameter at a time in a round-robin fashion
-            // this reduces the load on the OBD bus and increases responsiveness for critical data
-
-            // adding more reads is possibile but not quite easy
-
-            // ATTENZIONE FATTO SOLO PER DEBUG!!!!, serve mettere i dati effettivi
-            if (cycleCounter % 2 == 0)
+            // Logica Round-Robin (3 step)
+            if (cycleCounter % 3 == 0)
             {
                 ret = sendOBDCommand(PID_BOOST);
+            } 
+            else if (cycleCounter % 3 == 1) 
+            {
+                ret = sendOBDCommand(PID_RPM);
+            } 
+            else 
+            {
+                // Gestione dei PID rimanenti a rotazione
+                switch (secondCycle) 
+                {
+                    case 0:
+                        ret = sendOBDCommand(PID_COOLANT_TEMP);
+                        break;
+                    case 1:
+                        ret = sendOBDCommand(PID_ENGINE_LOAD);
+                        break;
+                    case 2:
+                        ret = sendOBDCommand(PID_BATTERY_VOLTAGE);
+                        break;
+                }
+                
+                secondCycle++;
+                if (secondCycle > 2) secondCycle = 0;
             }
 
             if (ret == -1)
             {
-                Serial.println("Troppi errori, riconnessione... ");
+                Serial.println("Errore lettura OBD...");
                 errorCounter++;
                 if (errorCounter > 10)
                 {
                     reconnect = true;
                     if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
                     {
-                        if (err == 0)
-                            setError(1);
+                        if (err == 0) setError(1);
                         xSemaphoreGive(xUIMutex);
                     }
                 }
             }
+            else 
+            {
+                errorCounter = 0; // Reset errori se la lettura è OK
+            }
 
             cycleCounter++;
-
+            if (cycleCounter >= 30) {
+                cycleCounter = 0;
+            }
+            
             vTaskDelay(pdMS_TO_TICKS(10));
         }
         vTaskDelay(pdMS_TO_TICKS(20));
@@ -175,19 +155,34 @@ void vSaveTask(void *pvParameters)
 
 void vUITask(void *pvParameters)
 {
-
     setupScreen();
-
-    delay(1000); // wait for the first data to arrive
 
     while (1)
     {
-#ifdef TESTING
-        handleScreenButton();
-#endif
+        // Controllo input da Serial Monitor
+        if (Serial.available() > 0) {
+            char incomingChar = Serial.read();
+            
+            // 10 è '\n' (New Line), 13 è '\r' (Carriage Return)
+            if (incomingChar == '\n' || incomingChar == '\r') {
+                if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    ui_index++;
+                    if (ui_index >= TOTAL_BITMAPS) {
+                        ui_index = 0; // Torna al primo schermo
+                    }
+                    ui_update = true;
+                    Serial.printf("Input ricevuto: Cambio schermo all'indice %d\n", ui_index);
+                    xSemaphoreGive(xUIMutex);
+                }
+                
+                // Pulisce il buffer seriale per evitare cambi multipli con un solo invio
+                while(Serial.available() > 0) Serial.read(); 
+            }
+        }
+
         drawScreen();
 
-        vTaskDelay(pdMS_TO_TICKS(20)); // roughly 50 fps
+        vTaskDelay(pdMS_TO_TICKS(20)); 
     }
 }
 
@@ -197,7 +192,6 @@ void vBLETask(void *pvParameters)
 
     while (1)
     {
-
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }

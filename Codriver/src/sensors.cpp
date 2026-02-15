@@ -153,7 +153,7 @@ int readTemperature()
     lastDhtReadMs = now;
     lastTempC = temp;
     liveData.InternalTemp = temp;
-    Serial.println("Temperature: " + String(temp) + "°C");
+    // Serial.println("Temperature: " + String(temp) + "°C");
     return 0;
 }
 

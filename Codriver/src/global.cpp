@@ -27,13 +27,23 @@ Preferences preferences;
 
 // here you need to add more commands
 std::map<std::string, OBDCommand_t> obdCommandMap = {
-    {PID_RPM, {2, rpm}},
-    {PID_BOOST, {1, boost}},
-    // Add more PID-command mappings here
+    {PID_RPM,             {2, rpm}},             
+    {PID_BOOST,           {1, boost}},           
+    {PID_COOLANT_TEMP,    {1, coolant_temp}},   
+    {PID_ENGINE_LOAD,     {1, engine_load}},     
+    {PID_BATTERY_VOLTAGE, {2, battery_voltage}}
+
+    // You can expand with new pids!
 };
 
 std::map<int, char *> errorMap = {
     {1, "Tentativo di riconnessione OBD..."},
+    {2, "Errore inizializzazione LittleFs"},
+    {3, "Errore FS, schermo non riconosciuto"},
+    {3, "Errore Accelerometro"},
+    {4, "Errore fetching termometro"},
+
+    // Also you can add more errors
 };
 
 // here you can add more screens
@@ -119,12 +129,13 @@ int loadState(const char *state)
 void setError(int errCode)
 {
     const char *msg = errorMap[errCode];
-    // Serial.printf("Errore inviato: %s\n", msg);
+    Serial.printf("Errore inviato: %s\n", msg);
     if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        ui_update = true;
-        if (err == 0)
+        if (err == 0){
             err = errCode;
+            ui_update = true;
+        }
         xSemaphoreGive(xUIMutex);
     }
 }
@@ -140,6 +151,16 @@ int getError()
     return ret;
 }
 
+void resolveError(int errCode){
+    if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        if(err == errCode) {
+            err = 0;
+        }
+        xSemaphoreGive(xUIMutex);
+    }
+}
+
 // Here u can create new interpretation functions
 // keep in mind that u already have accesso to liveData structure
 void rpm(long raw_val)
@@ -148,6 +169,19 @@ void rpm(long raw_val)
 }
 
 void boost(long raw_val)
-{
+{   
     liveData.boost = (((float)raw_val / 100.0) - 1.0);
+    if (liveData.boost < 0.0) liveData.boost = 0.0;
+}
+
+void coolant_temp(long raw_val) {
+    liveData.coolantTemp = (float)(raw_val - 40);
+}
+
+void engine_load(long raw_val) {
+    liveData.engineLoad = ((float)raw_val * 100.0) / 255.0;
+}
+
+void battery_voltage(long raw_val) {
+    liveData.batteryVoltage = (float)raw_val / 1000.0;
 }

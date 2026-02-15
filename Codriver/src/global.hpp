@@ -42,6 +42,7 @@ typedef struct
     float engineTemp;
     float oilPressure;
     float coolantTemp;
+    float batteryVoltage;
     float intakeAirTemp;
     float throttlePosition;
     float fuelLevel;
@@ -80,6 +81,10 @@ typedef struct
 
 extern void rpm(long raw_val);
 extern void boost(long raw_val);
+extern void coolant_temp(long raw_val);
+extern void engine_load(long raw_val);
+extern void battery_voltage(long raw_val);
+
 extern DataTypes_t OBDScreens[];
 extern std::map<std::string, OBDCommand_t> obdCommandMap;
 extern std::map<int, char *> errorMap;
@@ -133,6 +138,7 @@ extern int readHumidity();
 extern void readIMU();
 extern void InitSensors();
 extern void setError(int errCode);
+extern void resolveError(int errCode);
 extern int getError();
 
 // task

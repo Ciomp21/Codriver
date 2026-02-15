@@ -10,7 +10,6 @@ bool is_tcp_connected = false;
 
 void setupWifi()
 {
-
     Serial.println("🔌 Connessione alla Vgate Wi-Fi...");
     WiFi.begin(ssid, password);
 }
@@ -21,7 +20,8 @@ void checkWifiStatus()
     {
         if (!is_wifi_connected)
         {
-            Serial.println("\n✅ Connesso al Wi-Fi Vgate");
+            resolveError(1);
+            Serial.println("\nConnesso al Wi-Fi Vgate");
             is_wifi_connected = true;
         }
     }
@@ -29,7 +29,8 @@ void checkWifiStatus()
     {
         if (is_tcp_connected)
         {
-            Serial.println("❌ Wi-Fi Disconnesso.");
+            setError(1);
+            Serial.println("Wi-Fi Disconnesso.");
             is_wifi_connected = false;
             is_tcp_connected = false;
         }
@@ -48,12 +49,14 @@ int checkConnection()
 
         // Attempt to reconnect to Wi-Fi
         // Serial.println("Wifi non connesso.");
+        setError(1);
         return -1;
     }
 
     // might need to work on this, half connection
     if (client.connected())
     {
+        resolveError(1);
         is_tcp_connected = true;
         return 0;
     }
@@ -68,6 +71,7 @@ int checkConnection()
 
     if (client.connect("192.168.0.10", 35000))
     {
+        resolveError(1);
         Serial.println("✅ Connesso via TCP. Inizializzo OBD.");
         is_tcp_connected = true;
 
@@ -86,6 +90,7 @@ int checkConnection()
         return 0;
     }
 
+    setError(1);
     Serial.println("❌ TCP fallito.");
     return -1;
 }

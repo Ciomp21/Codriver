@@ -37,7 +37,9 @@ void setupScreen()
   // inizializzo qui il sistema
   if (!LittleFS.begin(true))
   {
-    Serial.println("❌ Errore critico: Impossibile inizializzare LittleFS!");
+    Serial.println("Errore critico: Impossibile inizializzare LittleFS!");
+    setError(1);
+
     while (true)
     {
       delay(100);
@@ -57,12 +59,12 @@ void setupScreen()
 
   // wait for the wifi to be connected before loading the states, otherwise we might have problems with the preferences library
 
-#ifndef TESTING
-  while (!is_tcp_connected)
-  {
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-#endif
+// #ifndef TESTING
+//   while (!is_tcp_connected)
+//   {
+//     vTaskDelay(pdMS_TO_TICKS(100));
+//   }
+// #endif
 
   if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
   {
@@ -110,9 +112,9 @@ void drawScreen()
   }
 
   DataTypes_t screen = OBDScreens[current_index];
-
   if (update)
   {
+
     if (getError() != 0)
     {
       changeBitmap(0);
@@ -148,16 +150,20 @@ void drawScreen()
 
 void changeBitmap(int index)
 {
+  
   int current_index = index;
+
 
   Serial.printf("Preso file: %s\n", OBDScreens[current_index].bitmap_file);
   // load the brtmap from LittleFS
   File file = LittleFS.open(OBDScreens[current_index].bitmap_file, "r");
   if (!file)
   {
+    setError(3);
     Serial.printf("ERRORE: Impossibile aprire il file: %s\n", OBDScreens[current_index].bitmap_file);
     return;
   }
+  resolveError(3);
 
   gfx->fillScreen(BLACK);
 
@@ -480,6 +486,7 @@ void drawBoost()
   boostValue = 1.0 + 0.5 * sin(millis() / 1000.0);
 #endif
 
+
   // i get the length of the string
   int length = snprintf(NULL, 0, "%.*f", decimals, boostValue);
   int prevlength = snprintf(NULL, 0, "%.*f", decimals, val);
@@ -563,158 +570,6 @@ float oldax = 0, olday = 0, oldaz = 0;
 Quadrant old_quadrant = (Quadrant)-1; // invalid quadrant to force initial draw
 Force old_force = (Force)-1;          // invalid force to force initial draw
 
-#ifdef TESTING
-float testData[][2] = {
-
-    // Idle noise
-    {0.02, -0.01},
-    {-0.01, 0.03},
-    {0.00, -0.02},
-    {0.03, 0.01},
-    {-0.02, 0.02},
-    {0.01, -0.03},
-    {-0.03, 0.00},
-    {0.02, 0.02},
-
-    // Smooth acceleration
-    {0.00, 0.10},
-    {0.00, 0.20},
-    {0.01, 0.35},
-    {0.00, 0.50},
-    {0.02, 0.70},
-    {0.00, 0.90},
-    {0.01, 1.10},
-    {0.00, 1.30},
-    {0.00, 1.50},
-    {0.02, 1.70},
-    {0.00, 1.90},
-
-    // Hold acceleration
-    {0.01, 1.85},
-    {0.00, 1.88},
-    {-0.02, 1.80},
-    {0.00, 1.90},
-
-    // Release throttle
-    {0.00, 1.50},
-    {0.00, 1.10},
-    {0.00, 0.70},
-    {0.00, 0.30},
-
-    // Hard braking
-    {0.00, -0.30},
-    {0.00, -0.70},
-    {-0.01, -1.00},
-    {0.00, -1.30},
-    {0.00, -1.60},
-    {0.02, -1.80},
-    {0.00, -2.00},
-
-    // Return to zero
-    {0.00, -1.20},
-    {0.00, -0.60},
-    {0.00, -0.20},
-
-    // Left cornering build
-    {-0.20, 0.00},
-    {-0.40, 0.00},
-    {-0.60, 0.00},
-    {-0.80, 0.02},
-    {-1.00, 0.00},
-    {-1.20, 0.01},
-    {-1.40, 0.00},
-    {-1.60, 0.00},
-
-    // Sustained left turn
-    {-1.70, 0.02},
-    {-1.80, -0.01},
-    {-1.75, 0.00},
-
-    // Combined braking + left
-    {-1.50, -0.50},
-    {-1.60, -0.70},
-    {-1.70, -0.90},
-
-    // Transition to right
-    {-1.00, 0.00},
-    {-0.50, 0.00},
-    {0.00, 0.00},
-    {0.50, 0.00},
-    {1.00, 0.00},
-    {1.30, 0.00},
-    {1.50, 0.01},
-    {1.70, 0.00},
-    {1.80, -0.02},
-
-    // Combined accel + right
-    {1.50, 0.60},
-    {1.60, 0.80},
-    {1.70, 1.00},
-    {1.60, 1.20},
-    {1.50, 1.40},
-
-    // Random racing noise
-    {0.40, 0.30},
-    {-0.30, 0.50},
-    {0.80, -0.60},
-    {-0.90, 0.40},
-    {1.10, -0.20},
-    {-1.20, 0.30},
-    {0.60, -1.10},
-    {-0.70, 1.20},
-    {1.30, -0.80},
-    {-1.40, 0.90},
-
-    // High-G spikes
-    {2.00, 0.00},
-    {-2.00, 0.00},
-    {0.00, 2.00},
-    {0.00, -2.00},
-    {1.80, 1.80},
-    {-1.80, -1.80},
-
-    // Small jitter for filtering test
-    {0.05, 0.04},
-    {-0.04, 0.03},
-    {0.03, -0.05},
-    {0.02, 0.01},
-    {-0.03, -0.02},
-
-    // Extended random realistic driving
-    {0.20, 0.30},
-    {0.40, 0.60},
-    {0.70, 0.80},
-    {1.00, 0.90},
-    {1.20, 0.70},
-    {1.00, 0.40},
-    {0.80, 0.20},
-    {0.50, -0.20},
-    {0.20, -0.60},
-    {-0.30, -0.80},
-    {-0.70, -1.00},
-    {-1.00, -1.20},
-    {-1.30, -1.00},
-    {-1.50, -0.70},
-    {-1.70, -0.40},
-    {-1.80, -0.20},
-    {-1.60, 0.10},
-    {-1.20, 0.40},
-    {-0.80, 0.60},
-    {-0.40, 0.80},
-    {0.00, 1.00},
-    {0.40, 1.20},
-    {0.80, 1.40},
-    {1.20, 1.50},
-    {1.60, 1.30},
-    {1.80, 1.00},
-    {1.50, 0.70},
-    {1.00, 0.40},
-    {0.50, 0.10},
-    {0.00, 0.00}};
-
-int accIndex = 0;
-#endif
-
 void drawAcceleration()
 {
   float accX, accY, accZ;
@@ -734,14 +589,6 @@ void drawAcceleration()
     accY = liveData.accelY;
     accZ = liveData.accelZ;
   }
-
-#ifdef TESTING
-  // for testing purposes, we simulate some acceleration values
-  accX = testData[accIndex][0];
-  accY = testData[accIndex][1];
-  accIndex = (accIndex + 1) % (sizeof(testData) / sizeof(testData[0]));
-  accZ = 0;
-#endif
 
   Quadrant quadrant;
   Force currentForce;
@@ -830,10 +677,6 @@ void drawAcceleration()
     old_force = currentForce;
   }
 
-#ifdef TESTING
-  delay(100);
-#endif
-
   oldax = accX;
   olday = accY;
   oldaz = accZ;
@@ -869,10 +712,6 @@ void drawRoll()
     roll = liveData.roll;
   }
 
-#ifdef TESTING
-  roll = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
-#endif
-
   current_roll = current_roll + (roll - current_roll) * smooth;
 
   if (fabs(current_roll - old_roll) <= 1.0)
@@ -906,10 +745,6 @@ void drawPitch()
     pitch = liveData.pitch;
   }
 
-#ifdef TESTING
-  pitch = rotAngles[++rotIndex % 100]; // example angle, you can replace it with actual data
-#endif
-
   current_pitch = current_pitch + (pitch - current_pitch) * smooth;
 
   if (fabs(current_pitch - old_pitch) <= 1.0)
@@ -926,12 +761,17 @@ void drawPitch()
 
 void drawBattery()
 {
-  // For testing, we simulate a battery level that decreases over time
-  static float batteryLevel = 100.0;
-  batteryLevel -= 0.1; // Simulate battery drain
-
-  if (batteryLevel < 0)
-    batteryLevel = 100.0; // Reset for continuous testing
+  float batteryLevel;
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    batteryLevel = liveData.batteryVoltage;
+    liveData.batteryVoltage = -1.0;
+    xSemaphoreGive(xDataMutex);
+    }
+    else
+    {
+      batteryLevel = liveData.batteryVoltage;
+    }
 
   int length = snprintf(NULL, 0, "Battery: %.1f%%", batteryLevel);
   int startX = 120 - (length * 6) / 2;
@@ -993,7 +833,7 @@ void drawInit()
   int length = strlen(msg);
   int startX = 120 - (length * 6) / 2;
   gfx->setTextSize(1);
-  gfx->setCursor(startX, 190);
-  gfx->setTextColor(WHITE);
+  gfx->setCursor(startX, 120);
+  gfx->setTextColor(WHITE, BLACK);
   gfx->print(msg);
 }
