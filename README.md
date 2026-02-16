@@ -305,7 +305,7 @@ For development without a vehicle:
 
 ### Documentation & Presentation
 
-- 📊 **PowerPoint Presentation**: [Link to Presentation](#) _(Add your link here)_
+- 📊 **PowerPoint Presentation**: [Link to Presentation](#https://docs.google.com/presentation/d/126XkfHzT-UBZy_DHx1MGCWUIE_rBFgDQPgAdy4xfflc/edit?usp=sharing)
 - 🎥 **YouTube Demo Video**: [Link to Video](#) _(Add your link here)_
 
 ---
