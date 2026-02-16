@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
@@ -14,11 +13,7 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
-
 #define DEG2RAD 0.0174532925
-
-// HERE WE CHOOSE IF WE ARE IN TESTING MODE OR NOT, IF WE ARE IN TESTING MODE THE UI WILL BE SIMULATED WITH SOME RANDOM VALUES, OTHERWISE IT WILL BE DRIVEN BY THE REAL DATA
-// #define TESTING
 
 typedef struct
 {

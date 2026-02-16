@@ -1,7 +1,6 @@
 #pragma once
 #include <math.h>
-#include <Arduino.h>
-#include "sensor.h"
+#include <sensor.hpp>
 
 class ComplementaryFilter
 {

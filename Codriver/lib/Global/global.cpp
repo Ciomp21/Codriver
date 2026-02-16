@@ -1,7 +1,6 @@
 #include "global.hpp"
 #include "screen.hpp"
-#include <Arduino.h>
-// definizione di tutto l'hpp
+
 
 SemaphoreHandle_t xSerialMutex = NULL;
 SemaphoreHandle_t xUIMutex = NULL;

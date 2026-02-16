@@ -3,8 +3,6 @@
 
 #include <WiFi.h>
 
-
-
 // dichiara le funzioni
 void setupWifi();
 void checkWifiStatus();

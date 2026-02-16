@@ -1,17 +1,16 @@
+#include <LittleFS.h>
+#include <FS.h>
+#include <Preferences.h>
+#include <freertos/task.h>
+#include "sensor.hpp"
 #include "global.hpp"
 #include "requests.hpp"
 #include "screen.hpp"
 #include "bleconnection.hpp"
-#include "LittleFS.h"
-#include <FS.h>
-#include <Preferences.h>
-#include "freertos/task.h"
-#include "sensor.h"
 
 // -------------------------------------------------
 //                      TASKS
 // -------------------------------------------------
-
 
 // This task handles the Wi-Fi fetching and connection
 
@@ -22,12 +21,11 @@ void vOBDFetchTask(void *pvParameters)
     int cycleCounter = 0;
     bool reconnect = true;
     int errorCounter = 0;
-    int secondCycle = 0;
 
     while (1)
     {
         checkWifiStatus();
-        
+
         if (reconnect)
         {
             int status = checkConnection();
@@ -56,25 +54,25 @@ void vOBDFetchTask(void *pvParameters)
             if (cycleCounter % 3 == 0)
             {
                 ret = sendOBDCommand(PID_BOOST);
-            } 
-            else if (cycleCounter % 3 == 1) 
+            }
+            else if (cycleCounter % 3 == 1)
             {
                 ret = sendOBDCommand(PID_RPM);
-            } 
-            else 
+            }
+            else
             {
                 // Gestione dei PID rimanenti a rotazione
-                switch (cycleCounter) 
+                switch (cycleCounter)
                 {
-                    case 2:
-                        ret = sendOBDCommand(PID_COOLANT_TEMP);
-                        break;
-                    case 5:
-                        ret = sendOBDCommand(PID_ENGINE_LOAD);
-                        break;
-                    case 8:
-                        ret = sendOBDCommand(PID_BATTERY_VOLTAGE);
-                        break;
+                case 2:
+                    ret = sendOBDCommand(PID_COOLANT_TEMP);
+                    break;
+                case 5:
+                    ret = sendOBDCommand(PID_ENGINE_LOAD);
+                    break;
+                case 8:
+                    ret = sendOBDCommand(PID_BATTERY_VOLTAGE);
+                    break;
                 }
             }
 
@@ -87,21 +85,23 @@ void vOBDFetchTask(void *pvParameters)
                     reconnect = true;
                     if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
                     {
-                        if (err == 0) setError(1);
+                        if (err == 0)
+                            setError(1);
                         xSemaphoreGive(xUIMutex);
                     }
                 }
             }
-            else 
+            else
             {
                 errorCounter = 0; // Reset errori se la lettura è OK
             }
 
             cycleCounter++;
-            if (cycleCounter >= 30) {
+            if (cycleCounter >= 30)
+            {
                 cycleCounter = 0;
             }
-            
+
             vTaskDelay(pdMS_TO_TICKS(10));
         }
         vTaskDelay(pdMS_TO_TICKS(20));
@@ -156,29 +156,34 @@ void vUITask(void *pvParameters)
     while (1)
     {
         // Controllo input da Serial Monitor
-        if (Serial.available() > 0) {
+        if (Serial.available() > 0)
+        {
             char incomingChar = Serial.read();
-            
+
             // 10 è '\n' (New Line), 13 è '\r' (Carriage Return)
-            if (incomingChar == '\n' || incomingChar == '\r') {
-                if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            if (incomingChar == '\n' || incomingChar == '\r')
+            {
+                if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+                {
                     ui_index++;
-                    if (ui_index >= TOTAL_BITMAPS) {
+                    if (ui_index >= TOTAL_BITMAPS)
+                    {
                         ui_index = 0; // Torna al primo schermo
                     }
                     ui_update = true;
                     Serial.printf("Input ricevuto: Cambio schermo all'indice %d\n", ui_index);
                     xSemaphoreGive(xUIMutex);
                 }
-                
+
                 // Pulisce il buffer seriale per evitare cambi multipli con un solo invio
-                while(Serial.available() > 0) Serial.read(); 
+                while (Serial.available() > 0)
+                    Serial.read();
             }
         }
 
         drawScreen();
 
-        vTaskDelay(pdMS_TO_TICKS(20)); 
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
@@ -195,11 +200,6 @@ void vBLETask(void *pvParameters)
 void setup()
 {
     Serial.begin(115200);
-    delay(1000);
-
-#ifdef TESTING
-    pinMode(SCREEN_BUTTON_PIN, INPUT_PULLUP);
-#endif
 
     xUIMutex = xSemaphoreCreateMutex();
     xSerialMutex = xSemaphoreCreateMutex();

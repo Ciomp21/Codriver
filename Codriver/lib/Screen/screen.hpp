@@ -1,7 +1,6 @@
 #ifndef SCREEN_HPP
 #define SCREEN_HPP
 
-#include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 #include "global.hpp"
 
@@ -22,13 +21,16 @@
 
 enum Quadrant
 {
+    NONE = -1,
     Q1,
     Q2,
     Q3,
-    Q4
+    Q4,
+
 };
 enum Force
 {
+    ZEROF = -1,
     LOWF,
     MEDIUMF,
     HIGHF

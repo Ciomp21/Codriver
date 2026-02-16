@@ -5,8 +5,7 @@
 #include <LittleFS.h>
 #include <FS.h>
 #include <screen.hpp>
-
-#include "global.hpp"
+#include <global.hpp>
 
 // filesystem
 #define LINE_BUFFER_SIZE (240 * 2)
@@ -27,6 +26,7 @@ static uint16_t lineBuffer[240];
 void changeBitmap(int index);
 
 // Setting up the screen and loading the states from the last shutdown
+// Also displays the loading screen until the wifi is connected, otherwise we might have problems with the preferences library
 void setupScreen()
 {
 
@@ -46,27 +46,25 @@ void setupScreen()
     };
   }
 
-  // if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
-  // {
-  //   ui_index = 0;
-  //   ui_color = 0xFFFFFF;
-  //   err = 0;
-  //   xSemaphoreGive(xUIMutex);
-  // }
+  if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
+  {
+    ui_index = 0;
+    ui_color = 0xFFFFFF;
+    err = 0;
+    xSemaphoreGive(xUIMutex);
+  }
 
   // sets the loading bitmap with the logo
   changeBitmap(0);
 
   // wait for the wifi to be connected before loading the states, otherwise we might have problems with the preferences library
-
-  // while (!is_tcp_connected)
-  // {
-  //   vTaskDelay(pdMS_TO_TICKS(100));
-  // }
+  while (!is_tcp_connected)
+  {
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
 
   if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
   {
-    // just for testing
     ui_color = loadState("color");
     ui_index = loadState("screen");
     float min = loadState("min");
@@ -88,6 +86,7 @@ void setupScreen()
   }
 }
 
+// This function is called to update the screen, it checks if there is a new bitmap to load and then calls the draw function of the current screen
 void drawScreen()
 {
   int current_index;
@@ -138,14 +137,7 @@ void drawScreen()
   }
 }
 
-// we use this to change the bitmap being displayed
-// the bitmaps are stored in LittleFS
-// in order to add a new bitmap just turn it into a .bin file
-// with 240x240 pixels and upload it to LittleFS with the appropriate tool
-
-// you also neet to add its path and parameters to the OBDScreens array in global.cpp
-// and load the fs with platiformio tool
-
+// Used to to change the bitmap being displayed by taking the bitmap file from the LittleFS and drawing it on the screen, it also sets the current min and max values for the gauges
 void changeBitmap(int index)
 {
 
@@ -176,6 +168,8 @@ void changeBitmap(int index)
 
   file.close();
 }
+
+// ==================================== AUXILIARY FUNCTIONS FOR THE SCREENS ===============================
 
 float toAngle(float value, float minVal, float maxVal, float startAngle, float sweepAngle)
 {
@@ -379,7 +373,7 @@ void drawCarFrontFrame(float current_roll, uint16_t bodyColor, uint16_t lineColo
   gfx->print(buffer);
 }
 
-static void drawCarSideFrame(float current_roll, uint16_t bodyColor, uint16_t lineColor, uint16_t textColor)
+void drawCarSideFrame(float current_roll, uint16_t bodyColor, uint16_t lineColor, uint16_t textColor)
 {
   int cx = 120;
   int cy = 120;
@@ -480,7 +474,6 @@ void drawArcs(Force force, Quadrant quadrant, bool color)
   case Q4:
     START_ANGLE = 315;
     break;
-
   default:
     START_ANGLE = 0;
     break;
@@ -507,7 +500,8 @@ void drawArcs(Force force, Quadrant quadrant, bool color)
   }
 }
 
-// here u can add new draw functions for the various screens
+// ==================================== DRAWING FUNCTIONS FOR THE SCREENS ===============================
+
 void drawBoost()
 {
 
@@ -571,25 +565,19 @@ void drawRPM()
   {
     value = liveData.rpm;
   }
-
-#ifdef TESTING
-  // for testing purposes, we simulate some rpm values
-  value = 3000 + 2000 * sin(millis() / 1000.0);
-#endif
-
-  int length = snprintf(NULL, 0, "%.*f", decimals, value);
-
   drawGauge(value);
 
+  int length = snprintf(NULL, 0, "%.*f", decimals, value);
   int startX = 120 - (length * 18) / 2;
+
   if (value == -1)
   {
     return;
   }
-  // da vedere questo
+
   if (abs(value - val) > 0.001)
   {
-    gfx->fillRect(startX, 150, length * 18, 18, BLACK);
+    gfx->fillRect(startX, 155, length * 18, 18, BLACK);
   }
 
   val = value;
@@ -601,8 +589,21 @@ void drawRPM()
 }
 
 float oldax = 0, olday = 0, oldaz = 0;
+float old_magnitude = 0.0;
 Quadrant old_quadrant = (Quadrant)-1; // invalid quadrant to force initial draw
 Force old_force = (Force)-1;          // invalid force to force initial draw
+
+void drawMagnitude(float magnitude, int color)
+{
+  char buffer[20];
+  int length = snprintf(buffer, sizeof(buffer), "%.1f", magnitude);
+  int startX = 123 - ((length * 18) / 2);
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, 110);
+  gfx->setTextColor(color, BLACK);
+  gfx->print(buffer);
+}
 
 void drawAcceleration()
 {
@@ -646,10 +647,15 @@ void drawAcceleration()
   else
   {
     // if we are close to the center we consider it as no acceleration
-    quadrant = Q1; // default to Q1 when near the center
+    quadrant = NONE; // default to NONE when near the center
   }
 
   float magnitude = sqrt(accX * accX + accY * accY);
+
+  drawMagnitude(old_magnitude, BLACK);
+  drawMagnitude(magnitude, ui_color);
+
+  old_magnitude = magnitude;
 
   if (magnitude < 0.5)
   {
@@ -659,9 +665,13 @@ void drawAcceleration()
   {
     currentForce = MEDIUMF;
   }
-  else
+  else if (magnitude >= 1.0)
   {
     currentForce = HIGHF;
+  }
+  else
+  {
+    currentForce = ZEROF; // default to ZEROF when near the center
   }
 
   if (quadrant != old_quadrant && currentForce != old_force)
@@ -705,6 +715,9 @@ void drawAcceleration()
       drawCross(WHITE);
 
       break;
+
+    default:
+      break;
     }
 
     old_quadrant = quadrant;
@@ -715,12 +728,6 @@ void drawAcceleration()
   olday = accY;
   oldaz = accZ;
 }
-
-#ifdef TESTING
-// Test function to draw a rectangle rotated by an angle, to be used for the front view of the car
-int rotIndex = 0;
-float rotAngles[] = {1.3, 1.6, 1.8, 1.9, 2.1, 2.1, 3.2, 3.4, 3.5, 4.1, 4.4, 4.8, 5, 5.2, 7.1, 7.4, 7.5, 8, 8.4, 9.1, 9.2, 9.2, 9.6, 10.5, 12.1, 12.6, 12.6, 12.6, 13.8, 13.9, 14.8, 15.5, 17.4, 18, 18.2, 18.2, 18.7, 18.8, 19.1, 19.3, 19.5, 20.2, 21.2, 21.7, 22.1, 22.7, 22.9, 23.1, 24.5, 25.6, 26, 26.6, 27.2, 27.3, 27.5, 28.3, 28.4, 28.7, 28.9, 29.9, 30.2, 30.2, 30.3, 31, 31.1, 31.2, 31.2, 31.3, 31.4, 31.6, 31.7, 31.8, 31.9, 32.5, 32.8, 32.8, 33.3, 33.5, 35.1, 35.4, 35.8, 36.7, 37.7, 37.9, 39, 39.1, 39.4, 39.4, 39.6, 40, 40.3, 41, 41.1, 41.7, 41.8, 42, 42.7, 42.7, 43.9, 44.9};
-#endif
 
 float current_roll = 0.0;
 float old_roll = 0.0;
@@ -861,6 +868,7 @@ void drawAirTemperature()
   prev_h = humidity;
 }
 
+// Used to draw the error screen, it checks the error code and displays the appropriate message
 void drawInit()
 {
   char *msg = (char *)"Errore sconosciuto";

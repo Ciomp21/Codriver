@@ -1,6 +1,6 @@
-#include "sensor.h"
-#include "global.hpp"
-#include "complementary_filter.hpp"
+#include <sensor.hpp>
+#include <global.hpp>
+#include <pitch_roll.hpp>
 
 DHT dht(DHTPIN, DHTTYPE);
 ComplementaryFilter filter;
@@ -11,11 +11,8 @@ static const unsigned long kDhtMinIntervalMs = 2000;
 
 // correct the pitch and roll of the device, insert the values
 // displayed on the screen
-float correctPitch = 6.0;
-float correctRoll = 0.0;
-
-
-
+#define CORRECT_PITCH 6.0
+#define CORRECT_ROLL 0.0
 
 void i2c_communicate(uint8_t reg, uint8_t data)
 {
@@ -86,8 +83,6 @@ void InitIMUSensor()
         who_am_i = Wire.read();
     }
 
-    
-
     // 2. VERIFICA
     if (who_am_i != 0x68 && who_am_i != 0x70)
     {
@@ -137,7 +132,6 @@ void InitSensors()
 // Read data from sensors and update LiveData structure
 // ==================================================================
 
-#define DEG_TO_RAD 0.01745329252f
 
 unsigned long lastIMUPrintTime = 0;
 
@@ -153,13 +147,14 @@ int readTemperature()
         return 0;
     }
 
-    //estimate air temperature
+    // estimate air temperature
 
     float chip_temp = temperatureRead();
     float percentage = chip_temp / 80.0;
     // Serial.printf("ChipTemp: %f\n", chip_temp);
 
-    if(percentage > 1){
+    if (percentage > 1)
+    {
         percentage = 1.0;
     }
     // Serial.printf("Percentage: %f\n", percentage);
@@ -233,7 +228,6 @@ void readIMU()
     // - MPU Z (right) becomes Car Y (left) → Y = -Z
     // INVERT the X axis to match the car's forward direction (MPU's X points backward)
 
-
     // Convert raw values to physical units
     float accelX = -((float)ax - filter.ax_offset) / 4096.0f;
     float accelY = -((float)az - filter.az_offset) / 4096.0f;
@@ -253,25 +247,14 @@ void readIMU()
     // Remove gravity component
     // filter.removeGravity(accelX, accelY, accelZ);
 
-#ifdef TESTING
-    unsigned long currentTime = micros();
-
-    if (currentTime - lastIMUPrintTime >= 3000)
-    {
-        lastIMUPrintTime = currentTime;
-        Serial.printf("Roll: %.0f°, Pitch: %.0f°\n", filter.roll_deg, filter.pitch_deg);
-        Serial.printf("Lin Accel -> X: %.2f m/s², Y: %.2f m/s², Z: %.2f m/s²\n", accelX, accelY, accelZ);
-    }
-#endif
-
     if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
         liveData.accelX = accelX;
         liveData.accelY = accelY;
         liveData.accelZ = accelZ;
 
-        liveData.roll = filter.roll_deg - correctRoll;
-        liveData.pitch = filter.pitch_deg - correctPitch;
+        liveData.roll = filter.roll_deg - CORRECT_ROLL;
+        liveData.pitch = filter.pitch_deg - CORRECT_PITCH;
 
         xSemaphoreGive(xDataMutex);
     }

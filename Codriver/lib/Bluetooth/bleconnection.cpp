@@ -2,7 +2,6 @@
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
-#include <Arduino.h>
 #include <ArduinoJson.h>
 #include "screen.hpp"
 #include "global.hpp"

@@ -46,7 +46,6 @@ Codriver is an advanced IoT-based vehicle monitoring system that connects to a c
 
 - **PlatformIO** (VS Code Extension or CLI)
 - **Arduino Framework** for ESP32
-- **Python 3.x** (for PlatformIO)
 - **Git** (for version control)
 
 ### Required Libraries
@@ -70,25 +69,38 @@ The following libraries are automatically installed via PlatformIO:
 
 ```
 Codriver/
-├── src/                          # Main source code
-│   ├── main.cpp                  # Entry point, FreeRTOS task management
-│   ├── global.hpp/cpp            # Global variables, data structures, mutexes
-│   ├── requests.hpp/cpp          # WiFi and OBD-II communication
-│   ├── screen.hpp/cpp            # TFT display rendering logic
-│   ├── bleconnection.hpp/cpp    # BLE server setup and data streaming
-│   ├── sensors.cpp               # DHT11 and MPU6050 sensor reading
-│   ├── sensor.h                  # Sensor definitions and pin mappings
-│   ├── complementary_filter.hpp  # IMU data filtering algorithm
-│   └── codes.txt                 # ELM327 command reference
+├── .gitignore
+├── .vscode/
+│   └── settings.json
 ├── lib/
-│   └── Datas/
-│       └── livedata.h            # LiveData structure definition
-├── data/                         # LittleFS filesystem data
-├── include/                      # Additional headers
-├── platformio.ini                # PlatformIO configuration
-├── partitions.csv                # ESP32 partition table
-├── sdkconfig.esp32-s3-devkitc-1 # ESP32-S3 SDK configuration
-└── README.md                     # This file
+│   ├── Bluetooth/
+│   │   ├── bleconnection.hpp
+│   │   └── bleconnection.cpp
+│   ├── Datas/
+│   │   └── livedata.h
+│   ├── Obd/
+│   │   ├── requests.hpp
+│   │   └── requests.cpp
+│   ├── Pitch_Roll/
+│   │   └── complementary_filter.hpp
+│   ├── Screen/
+│   │   ├── screen.hpp
+│   │   └── screen.cpp
+│   └── Sensors/
+│       ├── sensor.h
+│       └── sensors.cpp
+├── src/
+│   ├── main.cpp
+│   ├── global.hpp
+│   ├── global.cpp
+│   └── codes.txt
+├── data/
+├── test/
+├── .gitignore
+├── platformio.ini
+├── partitions.csv
+├── sdkconfig.esp32-s3-devkitc-1
+└── README.md
 ```
 
 ### Source Code Organization
@@ -304,47 +316,43 @@ For development without a vehicle:
 
 This project was developed by a collaborative team with the following contributions:
 
-#### **[Member Name 1]** - _Team Lead & Hardware Integration_
+#### **Gianluca Campi** - _Sensor Fetching & Screen Graphics_
 
 - Designed and implemented the hardware wiring schematic
-- Integrated MPU6050 IMU sensor and DHT11 sensor
-- Configured ESP32-S3 pinout and peripheral connections
+- Integrated MPU6050 IMU sensor and DHT11 sensor ([sensor.cpp](lib/Sensors/sensors.cpp))
+- Pitch and Roll calculation and handling ([ComplementaryFilter.cpp](lib/Pitch_Roll/pitch_roll.hpp))
+- Graphics designer and implementation for the screen ([screen.cpp](lib/Screen/screen.cpp))
 - Tested and validated all sensor readings
+- Tested the various screen functions with simulated values
 
-#### **[Member Name 2]** - _Firmware Development & OBD-II Communication_
+#### **Leonardo Mosca** - _OBD-II Communication & Prototype Manufacturing_
 
-- Developed OBD-II WiFi communication protocol ([requests.cpp](src/requests.cpp))
+- Developed OBD-II WiFi communication protocol ([requests.cpp](lib/Obd/requests.cpp))
 - Implemented ELM327 command parsing and error handling
-- Created FreeRTOS task architecture in [main.cpp](src/main.cpp)
+- Created FreeRTOS task architecture in [main.cpp](src/main.cpp) & LittleFS memory partitioning
 - Optimized round-robin PID polling strategy
+- Implemented the preferences saving and upload on restart
+- Hardware dependent testing and final full test
+- Videomaker and prototype manufactoring (soldering, printing, ecc..)
 
-#### **[Member Name 3]** - _Display & User Interface_
+#### **Mathias Bruni** - _Bluetooth/API & Application Design_
 
-- Designed TFT display rendering system ([screen.cpp](src/screen.cpp))
-- Created dynamic gauge visualizations and bitmap management
-- Implemented multiple display modes (RPM, Boost, G-Force)
-- Developed UI update logic and screen transitions
-
-#### **[Member Name 4]** - _Bluetooth & Data Streaming_
-
-- Implemented BLE server and characteristic definitions ([bleconnection.cpp](src/bleconnection.cpp))
-- Designed real-time telemetry streaming architecture
-- Created data structure formats for mobile app integration
+- Implemented BLE server and characteristic definitions ([bleconnection.cpp](lib/Bluetooth/bleconnection.cpp))
+- Handled the BLE errors and retrials
+- Full Android mobile app implementation ([Mobile](Application/main/java/com/example/object_browser/MainActivity.java))
 - Tested BLE connectivity with various mobile devices
 
-#### **[Member Name 5]** - _Sensor Fusion & Algorithm Development_
+#### **Ilya Goronov** - _3D Modeling & GitHub Organization_
 
-- Developed complementary filter for IMU data ([complementary_filter.hpp](src/complementary_filter.hpp))
-- Implemented sensor reading logic ([sensors.cpp](src/sensors.cpp))
-- Tuned sensor calibration and filtering parameters
-- Validated acceleration and tilt calculations
+- Created the 3D model for fitting the parts
+- Created and Organized the GitHub workflow
 
 #### **Collective Efforts**
 
 - Code review and debugging sessions
 - System integration and testing
 - Documentation and presentation preparation
-- Demo video production and editing
+- Demo video production and review
 
 ---
 
