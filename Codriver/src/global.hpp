@@ -14,6 +14,11 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
+// this one is a special one
+#define PID_OIL_TEMP "22114D"
+
+
+
 #define DEG2RAD 0.0174532925
 
 // HERE WE CHOOSE IF WE ARE IN TESTING MODE OR NOT, IF WE ARE IN TESTING MODE THE UI WILL BE SIMULATED WITH SOME RANDOM VALUES, OTHERWISE IT WILL BE DRIVEN BY THE REAL DATA
@@ -40,7 +45,7 @@ typedef struct
     float rpm;
     float boost;
     float engineTemp;
-    float oilPressure;
+    float oilTemp;
     float coolantTemp;
     float batteryVoltage;
     float intakeAirTemp;
@@ -84,6 +89,7 @@ extern void boost(long raw_val);
 extern void coolant_temp(long raw_val);
 extern void engine_load(long raw_val);
 extern void battery_voltage(long raw_val);
+extern void oil_temp(long raw_val);
 
 extern DataTypes_t OBDScreens[];
 extern std::map<std::string, OBDCommand_t> obdCommandMap;
@@ -129,6 +135,7 @@ extern void drawPitch();
 extern void drawRoll();
 extern void drawBattery();
 extern void drawTemperature();
+extern void drawAirTemperature();
 
 extern void checkWifiStatus();
 extern int checkConnection();

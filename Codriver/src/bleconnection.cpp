@@ -58,7 +58,7 @@ void parseJson(const char* jsonStr) {
   int g = doc["g"] | 0;
   int b = doc["b"] | 0;
   uint16_t new_color = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-  int index = doc["index"] | 0;
+  int index = doc["id"] | 0;
 
   int min = doc["min"] | 0;
   int max = doc["max"] | 0;
@@ -75,13 +75,22 @@ void parseJson(const char* jsonStr) {
         return;
     }
 
+    if( index != ui_index && index != 0) {
+      ui_index = index;
+      ui_update = true;
+    }
+
+    if (OBDScreens[ui_index].max != max || OBDScreens[ui_index].min != min){
+      OBDScreens[ui_index].max = max;
+      OBDScreens[ui_index].min = min;
+      ui_update = true;
+    }
+
     Serial.println("Cambio UI");
 
     ui_color = new_color;
-    ui_index = index;
-    ui_update = true;
-    OBDScreens[ui_index].max = max;
-    OBDScreens[ui_index].min = min;
+    
+    
     xSemaphoreGive(xUIMutex);
   } else {
       Serial.println("❌ BLE: Mutex Timeout. Impossibile aggiornare UI.");

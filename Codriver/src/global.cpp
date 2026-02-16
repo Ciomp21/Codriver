@@ -17,8 +17,8 @@ volatile float zero_z = 0.0;
 
 // Base startup values for the UI, will be overwritten by the saved states
 // Saved states are loaded in setupScreen function
-volatile int ui_color = 0xFFFFFF;
-volatile int ui_index = 1;
+volatile int ui_color;
+volatile int ui_index;
 volatile bool ui_update = true;
 
 int err = 0;
@@ -31,7 +31,8 @@ std::map<std::string, OBDCommand_t> obdCommandMap = {
     {PID_BOOST,           {1, boost}},           
     {PID_COOLANT_TEMP,    {1, coolant_temp}},   
     {PID_ENGINE_LOAD,     {1, engine_load}},     
-    {PID_BATTERY_VOLTAGE, {2, battery_voltage}}
+    {PID_BATTERY_VOLTAGE, {2, battery_voltage}},
+    {PID_OIL_TEMP, {1, oil_temp}}
 
     // You can expand with new pids!
 };
@@ -80,6 +81,13 @@ DataTypes_t OBDScreens[] = {
         .min = 0,
         .max = 0,
         .drawFunction = drawTemperature,
+    },
+    {
+        .bitmap_file = "/temp.bin",
+        .decimals = 0,
+        .min = 0,
+        .max = 0,
+        .drawFunction = drawAirTemperature,
     },
     {
         .bitmap_file = "/battery.bin",
@@ -176,6 +184,10 @@ void boost(long raw_val)
 
 void coolant_temp(long raw_val) {
     liveData.coolantTemp = (float)(raw_val - 40);
+}
+
+void oil_temp(long raw_val) {
+    liveData.oilTemp = (float)(raw_val - 40);
 }
 
 void engine_load(long raw_val) {

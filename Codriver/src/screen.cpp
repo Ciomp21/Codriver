@@ -46,25 +46,24 @@ void setupScreen()
     };
   }
 
-  if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
-  {
-    ui_index = 0;
-    ui_color = 0xFFFFFF;
-    err = 0;
-    xSemaphoreGive(xUIMutex);
-  }
+  // if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
+  // {
+  //   ui_index = 0;
+  //   ui_color = 0xFFFFFF;
+  //   err = 0;
+  //   xSemaphoreGive(xUIMutex);
+  // }
 
   // sets the loading bitmap with the logo
   changeBitmap(0);
 
   // wait for the wifi to be connected before loading the states, otherwise we might have problems with the preferences library
 
-// #ifndef TESTING
-//   while (!is_tcp_connected)
-//   {
-//     vTaskDelay(pdMS_TO_TICKS(100));
-//   }
-// #endif
+
+  // while (!is_tcp_connected)
+  // {
+  //   vTaskDelay(pdMS_TO_TICKS(100));
+  // }
 
   if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
   {
@@ -250,6 +249,55 @@ void drawGauge(float value)
 
   deg = current_deg;
 }
+
+void drawBattery()
+{
+  float batteryLevel;
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    batteryLevel = liveData.batteryVoltage;
+    liveData.batteryVoltage = -1.0;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    batteryLevel = liveData.batteryVoltage;
+  }
+
+  int current_color;
+  if (xSemaphoreTake(xUIMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    current_color = ui_color;
+    xSemaphoreGive(xUIMutex);
+  }
+  else
+  {
+    current_color = ui_color;
+  }
+
+  target_deg = toAngle(batteryLevel, current_min, current_max, 170.0, 200.0);
+  current_deg = current_deg + (target_deg - current_deg) * smooth;
+
+  int length = snprintf(NULL, 0, "Battery: %.1f%%", batteryLevel);
+  int startX = 120 - (length * 6) / 2;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, 190);
+  gfx->setTextColor(BLACK);
+  gfx->print(val, 1);
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, 190);
+  gfx->setTextColor(WHITE);
+  gfx->print(batteryLevel, 1);
+
+  drawLineFromCenter(deg, LENGTH, 5, BLACK);
+  drawLineFromCenter(current_deg, LENGTH, 5, current_color);
+
+  deg = current_deg;
+  val = batteryLevel;
+}
+
 
 void drawRotatedLine(int cx, int cy, float x1, float y1, float x2, float y2, float s, float c)
 {
@@ -480,12 +528,6 @@ void drawBoost()
   {
     boostValue = liveData.boost;
   }
-
-#ifdef TESTING
-  // for testing purposes, we simulate some rpm values
-  boostValue = 1.0 + 0.5 * sin(millis() / 1000.0);
-#endif
-
 
   // i get the length of the string
   int length = snprintf(NULL, 0, "%.*f", decimals, boostValue);
@@ -759,32 +801,8 @@ void drawPitch()
   old_pitch = current_pitch;
 }
 
-void drawBattery()
-{
-  float batteryLevel;
-  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
-  {
-    batteryLevel = liveData.batteryVoltage;
-    liveData.batteryVoltage = -1.0;
-    xSemaphoreGive(xDataMutex);
-    }
-    else
-    {
-      batteryLevel = liveData.batteryVoltage;
-    }
-
-  int length = snprintf(NULL, 0, "Battery: %.1f%%", batteryLevel);
-  int startX = 120 - (length * 6) / 2;
-
-  gfx->setTextSize(1);
-  gfx->setCursor(startX, 190);
-  gfx->setTextColor(WHITE);
-  gfx->print("Battery: ");
-  gfx->print(batteryLevel, 1);
-}
-
-float old_out_temp = -100.0;
-float old_in_temp = -100.0;
+float prev_t1 = -1.0;
+float prev_t2 = -1.0;
 
 void printTemperature(float temp, int strX, int strY, uint16_t color)
 {
@@ -800,19 +818,70 @@ void printTemperature(float temp, int strX, int strY, uint16_t color)
 
 void drawTemperature()
 {
-  // For testing, we simulate a temperature that fluctuates over time
-  static float temperature = 90.0;
-  temperature += 0.5 * sin(millis() / 2000.0); // Simulate temperature changes
+  float oil_temperature = 0.0;
+  float coolant_temperature = 0.0;
 
-  temperature *= 0.9; // Constrain to a realistic range and apply a scaling factor
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    oil_temperature = liveData.oilTemp;
+    liveData.oilTemp= -1.0;
 
-  printTemperature(old_in_temp, 130, 95, BLACK);
-  printTemperature(temperature, 130, 95, ui_color);
-  old_in_temp = temperature;
+    coolant_temperature = liveData.coolantTemp;
+    liveData.coolantTemp= -1.0;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    oil_temperature = liveData.oilTemp;
+    coolant_temperature = liveData.coolantTemp;
+  }
 
-  printTemperature(old_out_temp, 130, 145, BLACK);
-  printTemperature(temperature - 10, 130, 145, ui_color);
-  old_out_temp = temperature - 10;
+  printTemperature(prev_t1, 130, 95, BLACK);
+  printTemperature(oil_temperature, 130, 95, ui_color);
+  prev_t1 = oil_temperature;
+  
+
+
+  printTemperature(prev_t2, 130, 170, BLACK);
+  printTemperature(coolant_temperature, 130, 170, ui_color);
+  prev_t2 = coolant_temperature;
+
+
+
+}
+
+float prev_h = 0.0;
+
+void drawAirTemperature(){
+  float humidity = 0.0;
+  float air_temperature = 0.0;
+
+
+  if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
+  {
+    air_temperature = liveData.InternalTemp - liveData.InternalTemp/3;
+    humidity = liveData.humidity;
+    xSemaphoreGive(xDataMutex);
+  }
+  else
+  {
+    humidity = liveData.humidity;
+    air_temperature = liveData.InternalTemp;
+  }
+
+  printTemperature(prev_t1, 130, 95, BLACK);
+  printTemperature(air_temperature, 130, 95, ui_color);
+  prev_t1 = air_temperature;
+  
+
+
+  printTemperature(prev_h, 130, 170, BLACK);
+  printTemperature(humidity, 130, 170, ui_color);
+  prev_h = humidity;
+
+
+
+
 }
 
 void drawInit()

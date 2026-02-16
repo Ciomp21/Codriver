@@ -29,7 +29,7 @@ void checkWifiStatus()
     {
         if (is_tcp_connected)
         {
-            setError(1);
+            // setError(1);
             Serial.println("Wi-Fi Disconnesso.");
             is_wifi_connected = false;
             is_tcp_connected = false;
@@ -49,7 +49,7 @@ int checkConnection()
 
         // Attempt to reconnect to Wi-Fi
         // Serial.println("Wifi non connesso.");
-        setError(1);
+        // setError(1);
         return -1;
     }
 
@@ -90,7 +90,7 @@ int checkConnection()
         return 0;
     }
 
-    setError(1);
+    // setError(1);
     Serial.println("❌ TCP fallito.");
     return -1;
 }
@@ -126,6 +126,12 @@ int sendOBDCommand(const char *pid)
     String command = "01";
     command += pid;
     command += "\r";
+
+    if(pid == PID_OIL_TEMP) {
+        command = PID_OIL_TEMP;
+        command += "\r";
+    }
+
     client.print(command);
 
     // Aspetta la risposta fino al carattere de prompt '>'

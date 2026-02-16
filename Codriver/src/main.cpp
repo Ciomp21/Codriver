@@ -27,7 +27,7 @@ void vOBDFetchTask(void *pvParameters)
     while (1)
     {
         checkWifiStatus();
-
+        
         if (reconnect)
         {
             int status = checkConnection();
@@ -66,14 +66,17 @@ void vOBDFetchTask(void *pvParameters)
                 // Gestione dei PID rimanenti a rotazione
                 switch (secondCycle) 
                 {
-                    case 0:
+                    case 2:
                         ret = sendOBDCommand(PID_COOLANT_TEMP);
                         break;
-                    case 1:
+                    case 5:
                         ret = sendOBDCommand(PID_ENGINE_LOAD);
                         break;
-                    case 2:
+                    case 8:
                         ret = sendOBDCommand(PID_BATTERY_VOLTAGE);
+                        break;
+                    case 11:
+                        ret = sendOBDCommand(PID_OIL_TEMP);
                         break;
                 }
                 
@@ -145,7 +148,7 @@ void vSaveTask(void *pvParameters)
             saveState("color", ui_color);
             saveState("min", OBDScreens[ui_index].min);
             saveState("max", OBDScreens[ui_index].max);
-            // Serial.println("Salvataggio");
+            Serial.println("Salvataggio");
             xSemaphoreGive(xUIMutex);
             vTaskDelay(pdMS_TO_TICKS(5000));
         }
