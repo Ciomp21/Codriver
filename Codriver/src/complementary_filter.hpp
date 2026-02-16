@@ -58,13 +58,13 @@ public:
             delay(2);
         }
 
-        ax_offset = ax_sum / samples;
-        ay_offset = ay_sum / samples;
-        az_offset = az_sum / samples;
+        ax_offset = -(ax_sum / samples);
+        ay_offset = -(az_sum / samples);
+        az_offset = -(ay_sum / samples);
 
-        gx_offset = gx_sum / samples;
-        gy_offset = gy_sum / samples;
-        gz_offset = gz_sum / samples;
+        gx_offset = -(gx_sum / samples);
+        gy_offset = -(gz_sum / samples);
+        gz_offset = -(gy_sum / samples);
     }
 
     // Update the filter with new accelerometer and gyroscope data

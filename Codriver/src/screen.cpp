@@ -59,7 +59,6 @@ void setupScreen()
 
   // wait for the wifi to be connected before loading the states, otherwise we might have problems with the preferences library
 
-
   // while (!is_tcp_connected)
   // {
   //   vTaskDelay(pdMS_TO_TICKS(100));
@@ -149,9 +148,8 @@ void drawScreen()
 
 void changeBitmap(int index)
 {
-  
-  int current_index = index;
 
+  int current_index = index;
 
   Serial.printf("Preso file: %s\n", OBDScreens[current_index].bitmap_file);
   // load the brtmap from LittleFS
@@ -297,7 +295,6 @@ void drawBattery()
   deg = current_deg;
   val = batteryLevel;
 }
-
 
 void drawRotatedLine(int cx, int cy, float x1, float y1, float x2, float y2, float s, float c)
 {
@@ -722,20 +719,13 @@ void drawAcceleration()
   oldax = accX;
   olday = accY;
   oldaz = accZ;
-
-  // Should be done by the SPRITE
-  // gfx->drawCircle(CENTER_X, CENTER_Y, 188 / 2, WHITE);
-  // gfx->drawCircle(CENTER_X, CENTER_Y, 187 / 2, WHITE);
-  // gfx->drawCircle(CENTER_X, CENTER_Y, 186 / 2, WHITE);
-
-  // gfx->drawCircle(CENTER_X, CENTER_Y, 126 / 2, WHITE);
-  // gfx->drawCircle(CENTER_X, CENTER_Y, 125 / 2, WHITE);
-  // gfx->drawCircle(CENTER_X, CENTER_Y, 124 / 2, WHITE);
 }
 
+#ifdef TESTING
 // Test function to draw a rectangle rotated by an angle, to be used for the front view of the car
 int rotIndex = 0;
 float rotAngles[] = {1.3, 1.6, 1.8, 1.9, 2.1, 2.1, 3.2, 3.4, 3.5, 4.1, 4.4, 4.8, 5, 5.2, 7.1, 7.4, 7.5, 8, 8.4, 9.1, 9.2, 9.2, 9.6, 10.5, 12.1, 12.6, 12.6, 12.6, 13.8, 13.9, 14.8, 15.5, 17.4, 18, 18.2, 18.2, 18.7, 18.8, 19.1, 19.3, 19.5, 20.2, 21.2, 21.7, 22.1, 22.7, 22.9, 23.1, 24.5, 25.6, 26, 26.6, 27.2, 27.3, 27.5, 28.3, 28.4, 28.7, 28.9, 29.9, 30.2, 30.2, 30.3, 31, 31.1, 31.2, 31.2, 31.3, 31.4, 31.6, 31.7, 31.8, 31.9, 32.5, 32.8, 32.8, 33.3, 33.5, 35.1, 35.4, 35.8, 36.7, 37.7, 37.9, 39, 39.1, 39.4, 39.4, 39.6, 40, 40.3, 41, 41.1, 41.7, 41.8, 42, 42.7, 42.7, 43.9, 44.9};
+#endif
 
 float current_roll = 0.0;
 float old_roll = 0.0;
@@ -816,6 +806,18 @@ void printTemperature(float temp, int strX, int strY, uint16_t color)
   gfx->print(tempStr);
 }
 
+void printHumidity(float humidity, int strX, int strY, uint16_t color)
+{
+  char humStr[20];
+  int length = snprintf(humStr, sizeof(humStr), "%.1f%%", humidity);
+  int startX = strX - (length * 6) / 2;
+
+  gfx->setTextSize(3);
+  gfx->setCursor(startX, strY);
+  gfx->setTextColor(color);
+  gfx->print(humStr);
+}
+
 void drawTemperature()
 {
   float oil_temperature = 0.0;
@@ -824,10 +826,10 @@ void drawTemperature()
   if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   {
     oil_temperature = liveData.oilTemp;
-    liveData.oilTemp= -1.0;
+    liveData.oilTemp = -1.0;
 
     coolant_temperature = liveData.coolantTemp;
-    liveData.coolantTemp= -1.0;
+    liveData.coolantTemp = -1.0;
     xSemaphoreGive(xDataMutex);
   }
   else
@@ -839,27 +841,22 @@ void drawTemperature()
   printTemperature(prev_t1, 130, 95, BLACK);
   printTemperature(oil_temperature, 130, 95, ui_color);
   prev_t1 = oil_temperature;
-  
-
 
   printTemperature(prev_t2, 130, 170, BLACK);
   printTemperature(coolant_temperature, 130, 170, ui_color);
   prev_t2 = coolant_temperature;
-
-
-
 }
 
 float prev_h = 0.0;
 
-void drawAirTemperature(){
+void drawAirTemperature()
+{
   float humidity = 0.0;
   float air_temperature = 0.0;
 
-
   if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   {
-    air_temperature = liveData.InternalTemp - liveData.InternalTemp/3;
+    air_temperature = liveData.InternalTemp - liveData.InternalTemp / 3;
     humidity = liveData.humidity;
     xSemaphoreGive(xDataMutex);
   }
@@ -872,16 +869,10 @@ void drawAirTemperature(){
   printTemperature(prev_t1, 130, 95, BLACK);
   printTemperature(air_temperature, 130, 95, ui_color);
   prev_t1 = air_temperature;
-  
 
-
-  printTemperature(prev_h, 130, 170, BLACK);
-  printTemperature(humidity, 130, 170, ui_color);
+  printHumidity(prev_h, 130, 170, BLACK);
+  printHumidity(humidity, 130, 170, ui_color);
   prev_h = humidity;
-
-
-
-
 }
 
 void drawInit()

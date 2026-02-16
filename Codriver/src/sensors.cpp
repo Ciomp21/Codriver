@@ -143,7 +143,8 @@ int readTemperature()
         return 0;
     }
 
-    float temp = dht.readTemperature();
+    float temp = dht.readTemperature() - 10.0f; // SOTTRAI 10 GRADI PER COMPENSARE L'EFFETTO DEL CALORE DELLA CPU SUL SENSORE
+
     if (isnan(temp))
     {
         Serial.println("⚠️  Failed to read from DHT sensor!");
@@ -203,22 +204,31 @@ void readIMU()
     gy = (buffer[10] << 8) | buffer[11];
     gz = (buffer[12] << 8) | buffer[13];
 
-    // Convert raw values to 'g'
-    float accelX = ((float)ax - filter.ax_offset) / 4096.0f;
-    float accelY = ((float)ay - filter.ay_offset) / 4096.0f;
-    float accelZ = ((float)az - filter.az_offset) / 4096.0f;
+    // Need to swap some axes to match the car's coordinate system
+    // The MPU is mounted with Y-axix pointing downwards, X-axis backward and Z-axis to the right
+    // We want: X forward, Y left, Z up
+
+    // SO SWAP Y with Z and INVERT BOTH Y and Z to match the car's coordinate system:
+    // - MPU Y (down) becomes Car Z (up) → Z = -Y
+    // - MPU Z (right) becomes Car Y (left) → Y = -Z
+    // INVERT the X axis to match the car's forward direction (MPU's X points backward)
+
+    // Convert raw values to physical units
+    float accelX = -((float)ax - filter.ax_offset) / 4096.0f;
+    float accelY = -((float)az - filter.az_offset) / 4096.0f;
+    float accelZ = -((float)ay - filter.ay_offset) / 4096.0f;
 
     // Convert raw values to 'rad/s'
-    float gyroX = ((float)gx - filter.gx_offset) / 131.0f * DEG_TO_RAD;
-    float gyroY = ((float)gy - filter.gy_offset) / 131.0f * DEG_TO_RAD;
-    float gyroZ = ((float)gz - filter.gz_offset) / 131.0f * DEG_TO_RAD;
+    float gyroX = -((float)gx - filter.gx_offset) / 131.0f * DEG_TO_RAD;
+    float gyroY = -((float)gz - filter.gz_offset) / 131.0f * DEG_TO_RAD;
+    float gyroZ = -((float)gy - filter.gy_offset) / 131.0f * DEG_TO_RAD;
 
     // Need to update the Roll and Pitch values in filter
     // Convert accelerometer from 'g' to 'm/s²'
     filter.update(accelX * 9.81f, accelY * 9.81f, accelZ * 9.81f, gyroX, gyroY);
 
     // Remove gravity component
-    filter.removeGravity(accelX, accelY, accelZ);
+    // filter.removeGravity(accelX, accelY, accelZ);
 
 #ifdef TESTING
     unsigned long currentTime = micros();
