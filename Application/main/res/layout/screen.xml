@@ -1,0 +1,68 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/rounded_card"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Bottone Azione -->
+    <TextView
+        android:id="@+id/textTitle"
+        android:layout_width="370dp"
+        android:layout_height="47dp"
+        android:text="Titolo riquadro"
+        android:textColor="#FFFFFFFF"
+        android:textSize="26sp"
+        android:textStyle="bold" />
+
+    <ImageButton
+        android:id="@+id/buttonAction"
+        android:layout_width="301dp"
+        android:layout_height="301dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@android:color/transparent"
+        android:contentDescription="Screen Image"
+        android:scaleType="fitCenter" />
+
+    <!-- Contenitore verticale per titolo e bottone pick color -->
+    <View
+        android:id="@+id/view2"
+        android:layout_width="match_parent"
+        android:layout_height="30dp" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="16dp">
+
+
+        <TextView
+            android:id="@+id/description"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="308dp"
+            android:text="descrizione"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textTitle" />
+
+        <ImageButton
+            android:id="@+id/button"
+            android:layout_width="33dp"
+            android:layout_height="33dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Music Button"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="fitCenter"
+            android:src="@drawable/gear"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>
