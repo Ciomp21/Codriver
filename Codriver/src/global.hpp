@@ -14,10 +14,6 @@
 #define PID_BATTERY_VOLTAGE "42"
 #define PID_ENGINE_LOAD "04"
 
-// this one is a special one
-#define PID_OIL_TEMP "22114D"
-
-
 
 #define DEG2RAD 0.0174532925
 
@@ -45,7 +41,6 @@ typedef struct
     float rpm;
     float boost;
     float engineTemp;
-    float oilTemp;
     float coolantTemp;
     float batteryVoltage;
     float intakeAirTemp;
@@ -89,7 +84,6 @@ extern void boost(long raw_val);
 extern void coolant_temp(long raw_val);
 extern void engine_load(long raw_val);
 extern void battery_voltage(long raw_val);
-extern void oil_temp(long raw_val);
 
 extern DataTypes_t OBDScreens[];
 extern std::map<std::string, OBDCommand_t> obdCommandMap;

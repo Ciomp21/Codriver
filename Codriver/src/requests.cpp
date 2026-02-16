@@ -127,11 +127,6 @@ int sendOBDCommand(const char *pid)
     command += pid;
     command += "\r";
 
-    if(pid == PID_OIL_TEMP) {
-        command = PID_OIL_TEMP;
-        command += "\r";
-    }
-
     client.print(command);
 
     // Aspetta la risposta fino al carattere de prompt '>'

@@ -9,6 +9,14 @@ static float lastTempC = NAN;
 static float lastHumidity = NAN;
 static const unsigned long kDhtMinIntervalMs = 2000;
 
+// correct the pitch and roll of the device, insert the values
+// displayed on the screen
+float correctPitch = 6.0;
+float correctRoll = 0.0;
+
+
+
+
 void i2c_communicate(uint8_t reg, uint8_t data)
 {
     // Starts I2C transmission to the MPU6050
@@ -78,6 +86,8 @@ void InitIMUSensor()
         who_am_i = Wire.read();
     }
 
+    
+
     // 2. VERIFICA
     if (who_am_i != 0x68 && who_am_i != 0x70)
     {
@@ -106,7 +116,7 @@ void InitIMUSensor()
 
     // 4. IMU CALIBRATION
     Serial.println("Calibrazione IMU in corso. Tenere fermo il dispositivo...");
-    filter.calibrate(); // Calibrazione con 1000 campioni di default
+    // filter.calibrate(); // Calibrazione con 1000 campioni di default
     Serial.println("✅ Calibrazione IMU completata.");
 
     Serial.println("MPU6050 configurato.");
@@ -143,7 +153,17 @@ int readTemperature()
         return 0;
     }
 
-    float temp = dht.readTemperature() - 10.0f; // SOTTRAI 10 GRADI PER COMPENSARE L'EFFETTO DEL CALORE DELLA CPU SUL SENSORE
+    //estimate air temperature
+
+    float chip_temp = temperatureRead();
+    float percentage = chip_temp / 80.0;
+    // Serial.printf("ChipTemp: %f\n", chip_temp);
+
+    if(percentage > 1){
+        percentage = 1.0;
+    }
+    // Serial.printf("Percentage: %f\n", percentage);
+    float temp = dht.readTemperature() - 10.0f * percentage;
 
     if (isnan(temp))
     {
@@ -213,10 +233,13 @@ void readIMU()
     // - MPU Z (right) becomes Car Y (left) → Y = -Z
     // INVERT the X axis to match the car's forward direction (MPU's X points backward)
 
+
     // Convert raw values to physical units
     float accelX = -((float)ax - filter.ax_offset) / 4096.0f;
     float accelY = -((float)az - filter.az_offset) / 4096.0f;
     float accelZ = -((float)ay - filter.ay_offset) / 4096.0f;
+
+    // Serial.printf("X: %f, Y: %f, Z: %f\n", accelX, accelY, accelZ);
 
     // Convert raw values to 'rad/s'
     float gyroX = -((float)gx - filter.gx_offset) / 131.0f * DEG_TO_RAD;
@@ -247,8 +270,8 @@ void readIMU()
         liveData.accelY = accelY;
         liveData.accelZ = accelZ;
 
-        liveData.roll = filter.roll_deg;
-        liveData.pitch = filter.pitch_deg;
+        liveData.roll = filter.roll_deg - correctRoll;
+        liveData.pitch = filter.pitch_deg - correctPitch;
 
         xSemaphoreGive(xDataMutex);
     }
