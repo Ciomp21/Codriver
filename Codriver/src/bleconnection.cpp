@@ -28,19 +28,19 @@ class ConfigCallback : public BLECharacteristicCallbacks {
 };
 
 void setupBLE() {  
-    BLEDevice::init("Codriver");
-    BLEDevice::setMTU(512);
-    BLEServer *server = BLEDevice::createServer();
-    BLEService *service = server->createService(SERVICE_UUID);
+    BLEDevice::init("Codriver");            // Initialize BLE and set device name
+    BLEDevice::setMTU(512);                 // Set maximum packet size
+    BLEServer *server = BLEDevice::createServer();   // Create BLE server
+    BLEService *service = server->createService(SERVICE_UUID); // Create service
     BLECharacteristic *characteristic = service->createCharacteristic(
         CHARACTERISTIC_UUID,
-        BLECharacteristic::PROPERTY_WRITE
+        BLECharacteristic::PROPERTY_WRITE    // Allow client to write data
     );
 
-    characteristic->setCallbacks(new ConfigCallback());
-    service->start();
-    server->getAdvertising()->start();
-    Serial.println("BLE attivo. In attesa di messaggi");
+    characteristic->setCallbacks(new ConfigCallback()); // Handle writes
+    service->start();                                 // Start the service
+    server->getAdvertising()->start();               // Start advertising
+    Serial.println("BLE active. Waiting for messages");
 }
 
 void parseJson(const char* jsonStr) {
