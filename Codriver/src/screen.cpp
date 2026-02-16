@@ -254,7 +254,6 @@ void drawBattery()
   if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   {
     batteryLevel = liveData.batteryVoltage;
-    liveData.batteryVoltage = -1.0;
     xSemaphoreGive(xDataMutex);
   }
   else
@@ -277,7 +276,7 @@ void drawBattery()
   current_deg = current_deg + (target_deg - current_deg) * smooth;
 
   int length = snprintf(NULL, 0, "Battery: %.1f%%", batteryLevel);
-  int startX = 120 - (length * 6) / 2;
+  int startX = 120 - (length * 3) / 2;
 
   gfx->setTextSize(3);
   gfx->setCursor(startX, 190);
@@ -590,11 +589,7 @@ void drawRPM()
   // da vedere questo
   if (abs(value - val) > 0.001)
   {
-    // cancello
-    gfx->setTextSize(3);
-    gfx->setCursor(startX, 150);
-    gfx->setTextColor(BLACK);
-    gfx->print(val, decimals);
+    gfx->fillRect(startX, 150, length * 18, 18, BLACK);
   }
 
   val = value;
@@ -751,9 +746,9 @@ void drawRoll()
     return;
   }
 
-  drawCarFrontFrame(old_roll, BLACK, BLACK, BLACK);
+  drawCarFrontFrame(-old_roll, BLACK, BLACK, BLACK);
 
-  drawCarFrontFrame(current_roll, ui_color, ui_color, WHITE);
+  drawCarFrontFrame(-current_roll, ui_color, ui_color, WHITE);
 
   old_roll = current_roll;
 }
@@ -825,25 +820,16 @@ void drawTemperature()
 
   if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   {
-    oil_temperature = liveData.oilTemp;
-    liveData.oilTemp = -1.0;
-
     coolant_temperature = liveData.coolantTemp;
-    liveData.coolantTemp = -1.0;
     xSemaphoreGive(xDataMutex);
   }
   else
   {
-    oil_temperature = liveData.oilTemp;
     coolant_temperature = liveData.coolantTemp;
   }
 
-  printTemperature(prev_t1, 130, 95, BLACK);
-  printTemperature(oil_temperature, 130, 95, ui_color);
-  prev_t1 = oil_temperature;
-
-  printTemperature(prev_t2, 130, 170, BLACK);
-  printTemperature(coolant_temperature, 130, 170, ui_color);
+  printTemperature(prev_t2, 130, 115, BLACK);
+  printTemperature(coolant_temperature, 130, 115, ui_color);
   prev_t2 = coolant_temperature;
 }
 
@@ -856,7 +842,7 @@ void drawAirTemperature()
 
   if (xSemaphoreTake(xDataMutex, pdMS_TO_TICKS(5)) == pdTRUE)
   {
-    air_temperature = liveData.InternalTemp - liveData.InternalTemp / 3;
+    air_temperature = liveData.InternalTemp;
     humidity = liveData.humidity;
     xSemaphoreGive(xDataMutex);
   }

@@ -64,7 +64,7 @@ void vOBDFetchTask(void *pvParameters)
             else 
             {
                 // Gestione dei PID rimanenti a rotazione
-                switch (secondCycle) 
+                switch (cycleCounter) 
                 {
                     case 2:
                         ret = sendOBDCommand(PID_COOLANT_TEMP);
@@ -75,13 +75,7 @@ void vOBDFetchTask(void *pvParameters)
                     case 8:
                         ret = sendOBDCommand(PID_BATTERY_VOLTAGE);
                         break;
-                    case 11:
-                        ret = sendOBDCommand(PID_OIL_TEMP);
-                        break;
                 }
-                
-                secondCycle++;
-                if (secondCycle > 2) secondCycle = 0;
             }
 
             if (ret == -1)
@@ -148,7 +142,6 @@ void vSaveTask(void *pvParameters)
             saveState("color", ui_color);
             saveState("min", OBDScreens[ui_index].min);
             saveState("max", OBDScreens[ui_index].max);
-            Serial.println("Salvataggio");
             xSemaphoreGive(xUIMutex);
             vTaskDelay(pdMS_TO_TICKS(5000));
         }

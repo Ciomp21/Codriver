@@ -31,8 +31,7 @@ std::map<std::string, OBDCommand_t> obdCommandMap = {
     {PID_BOOST,           {1, boost}},           
     {PID_COOLANT_TEMP,    {1, coolant_temp}},   
     {PID_ENGINE_LOAD,     {1, engine_load}},     
-    {PID_BATTERY_VOLTAGE, {2, battery_voltage}},
-    {PID_OIL_TEMP, {1, oil_temp}}
+    {PID_BATTERY_VOLTAGE, {2, battery_voltage}}
 
     // You can expand with new pids!
 };
@@ -76,14 +75,14 @@ DataTypes_t OBDScreens[] = {
         .drawFunction = drawAcceleration,
     },
     {
-        .bitmap_file = "/temp.bin",
+        .bitmap_file = "/coolant1.bin",
         .decimals = 0,
         .min = 0,
         .max = 0,
         .drawFunction = drawTemperature,
     },
     {
-        .bitmap_file = "/temp.bin",
+        .bitmap_file = "/airtemp.bin",
         .decimals = 0,
         .min = 0,
         .max = 0,
@@ -184,10 +183,6 @@ void boost(long raw_val)
 
 void coolant_temp(long raw_val) {
     liveData.coolantTemp = (float)(raw_val - 40);
-}
-
-void oil_temp(long raw_val) {
-    liveData.oilTemp = (float)(raw_val - 40);
 }
 
 void engine_load(long raw_val) {
