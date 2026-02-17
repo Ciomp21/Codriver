@@ -284,9 +284,8 @@ For development without a vehicle:
 
 - ✅ Engine RPM
 - ✅ Turbo Boost Pressure
-- ✅ Coolant & Oil Temperature
+- ✅ Coolant Temperature
 - ✅ Battery Voltage
-- ✅ Engine Load
 - ✅ G-Force (Acceleration, Braking, Cornering)
 - ✅ Cabin Temperature & Humidity
 - ✅ Vehicle Tilt/Incline
@@ -306,7 +305,7 @@ For development without a vehicle:
 ### Documentation & Presentation
 
 - 📊 **PowerPoint Presentation**: [Link to Presentation](https://docs.google.com/presentation/d/126XkfHzT-UBZy_DHx1MGCWUIE_rBFgDQPgAdy4xfflc/edit?usp=sharing)
-- 🎥 **YouTube Demo Video**: [Link to Video](#) _(Add your link here)_
+- 🎥 **YouTube Demo Video**: [Link to Video](https://youtu.be/yCCgB2dlroc)
 
 ---
 
