@@ -6,5 +6,6 @@
 #include <BLEUtils.h>
 
 void setupBLE();
+void parseJson(const char *json);
 
 #endif

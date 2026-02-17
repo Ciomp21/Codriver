@@ -58,32 +58,32 @@ void setupScreen()
   changeBitmap(0);
 
   // wait for the wifi to be connected before loading the states, otherwise we might have problems with the preferences library
-  while (!is_tcp_connected)
-  {
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
+  // while (!is_tcp_connected)
+  // {
+  //   vTaskDelay(pdMS_TO_TICKS(100));
+  // }
 
-  if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
-  {
-    ui_color = loadState("color");
-    ui_index = loadState("screen");
-    float min = loadState("min");
-    float max = loadState("max");
-    ui_update = true;
+  // if (xSemaphoreTake(xUIMutex, portMAX_DELAY) == pdTRUE)
+  // {
+  //   ui_color = loadState("color");
+  //   ui_index = loadState("screen");
+  //   float min = loadState("min");
+  //   float max = loadState("max");
+  //   ui_update = true;
 
-    Serial.printf("Loaded states: color: %d, screen: %d, min: %f, max: %f\n", ui_color, ui_index, min, max);
+  //   Serial.printf("Loaded states: color: %d, screen: %d, min: %f, max: %f\n", ui_color, ui_index, min, max);
 
-    if (min != -1)
-    {
-      OBDScreens[ui_index].min = min;
-    }
-    if (max != -1)
-    {
-      OBDScreens[ui_index].max = max;
-    }
-    err = 0;
-    xSemaphoreGive(xUIMutex);
-  }
+  //   if (min != -1)
+  //   {
+  //     OBDScreens[ui_index].min = min;
+  //   }
+  //   if (max != -1)
+  //   {
+  //     OBDScreens[ui_index].max = max;
+  //   }
+  //   err = 0;
+  //   xSemaphoreGive(xUIMutex);
+  // }
 }
 
 // This function is called to update the screen, it checks if there is a new bitmap to load and then calls the draw function of the current screen

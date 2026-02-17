@@ -41,7 +41,6 @@ std::map<int, char *> errorMap = {
     {3, "Errore FS, schermo non riconosciuto"},
     {3, "Errore Accelerometro"},
     {4, "Errore fetching termometro"},
-
     // Also you can add more errors
 };
 
